@@ -63,7 +63,8 @@
                 <p class="lede">Everyone gets a secret role. One or two are <b>traitors</b>, lying to the room. A host runs the show, calls the twists and reads the votes — then the table votes someone out.</p>
                 <div class="pz-cta">
                     <button id="splash-connect" class="primary">Connect Pollen<span class="sub">You pay with your own Pollen. Nothing is charged until the show starts.</span></button>
-                    <button id="splash-start" disabled>Set up the table<span class="sub">Pass the device around the room</span></button>
+                    <button id="splash-start" disabled>Quick game<span class="sub">The host invents everything</span></button>
+                    <button id="splash-custom" class="ghost">Custom game<span class="sub">Write the cast, the story and the rules</span></button>
                 </div>
                 <div class="status" id="splash-hint">Sign in to begin.</div>
                 <div class="hint"><kbd>Pass &amp; play</kbd> — the host reads everything aloud. Roles and votes are decided in code.</div>
@@ -72,7 +73,84 @@
             <div aria-hidden="true"></div>
         </div>
 
-        <link rel="modulepreload" href="./dist/bundle.js?v=1790811010668" />
-        <script type="module" src="./dist/bundle.js?v=1790811010668"></script>
+
+        <style>
+            #custom { position: fixed; inset: 0; z-index: 35; overflow-y: auto; background: linear-gradient(180deg, rgba(10,7,32,.97), rgba(8,6,24,.99)); padding: 2rem clamp(1rem,4vw,3rem); }
+            #custom.leaving { opacity: 0; transform: scale(1.03); pointer-events: none; }
+            #custom .wrap { max-width: 52rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.1rem; }
+            #custom h2 { font-size: 1.9rem; margin: 0; background: linear-gradient(120deg, var(--cyan), var(--magenta)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+            #custom .section { background: rgba(20,16,51,.7); border: 1px solid rgba(34,230,255,.25); border-radius: 18px; padding: 1rem 1.1rem; }
+            #custom .section > h3 { margin: 0 0 .6rem; font-size: .82rem; letter-spacing: .22em; text-transform: uppercase; color: var(--cyan); }
+            #custom label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: .5rem 0; font-size: .95rem; }
+            #custom input[type=text], #custom input[type=number], #custom textarea, #custom select {
+                font: inherit; color: var(--ink); background: rgba(10,7,32,.92); border: 2px solid rgba(34,230,255,.28); border-radius: 10px; padding: .5rem .65rem; width: 62%;
+            }
+            #custom textarea { width: 100%; min-height: 4.6rem; resize: vertical; }
+            #custom select { width: auto; }
+            #custom input:focus, #custom textarea:focus, #custom select:focus { outline: none; border-color: var(--cyan); }
+            #custom .cast { display: flex; flex-direction: column; gap: .55rem; }
+            #custom .row1 { display: grid; grid-template-columns: 1.1fr 1.6fr auto auto; gap: .5rem; align-items: center; }
+            #custom .row1 input[type=text] { width: 100%; }
+            #custom .row1 select { width: 100%; }
+            #custom .row1 .del { border: 0; background: none; color: var(--dim); font-size: 1.2rem; cursor: pointer; }
+            #custom .hint { color: var(--dim); font-size: .82rem; margin: .2rem 0 .6rem; }
+            #custom .bar { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: .4rem; }
+            @media (max-width: 640px) { #custom .row1 { grid-template-columns: 1fr; } #custom input, #custom select { width: 100% !important; } }
+        </style>
+
+        <div id="custom" class="hidden">
+            <div class="wrap">
+                <h2>Custom game</h2>
+                <p class="hint">Everything is optional. Leave anything blank and the host invents it.</p>
+
+                <div class="section">
+                    <h3>The cast</h3>
+                    <p class="hint">Name each player, how they argue, and whether you want to fix their side.</p>
+                    <div class="cast" id="cast"></div>
+                    <div class="bar"><button id="cast-add" class="pz-btn">+ Add player</button></div>
+                </div>
+
+                <div class="section">
+                    <h3>The story</h3>
+                    <textarea id="c-story" maxlength="400" placeholder="A murder on a snowbound night train in 1934, among a travelling opera company."></textarea>
+                    <label>Genre
+                        <select id="c-genre">
+                            <option value="">Auto</option>
+                            <option>classic whodunnit</option>
+                            <option>noir detective</option>
+                            <option>cozy village mystery</option>
+                            <option>sci-fi station</option>
+                            <option>fantasy court intrigue</option>
+                            <option>gothic horror</option>
+                            <option>pirate ship</option>
+                            <option>western frontier</option>
+                            <option>space cruise</option>
+                            <option>regency manor</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="section">
+                    <h3>The rules</h3>
+                    <label>Rounds <input id="c-rounds" type="number" min="1" max="8" value="3" /></label>
+                    <label>Traitors <input id="c-traitors" type="number" min="0" max="5" value="0" /> </label>
+                    <p class="hint">Traitors 0 = the host decides from the player count.</p>
+                    <label>Discussion pace
+                        <select id="c-pace">
+                            <option value="brisk">Brisk</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="dramatic">Dramatic</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="bar">
+                    <button id="custom-start" class="pz-btn primary">Start this game</button>
+                    <button id="custom-back" class="pz-btn ghost">Back</button>
+                </div>
+            </div>
+        </div>
+        <link rel="modulepreload" href="./dist/bundle.js?v=1790811277099" />
+        <script type="module" src="./dist/bundle.js?v=1790811277099"></script>
     </body>
 </html>

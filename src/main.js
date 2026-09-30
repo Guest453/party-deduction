@@ -29,7 +29,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], custom: { rounds: 3, traitorCount: 1, story: "" }, seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
+const game = { g: null, roster: [], custom: { rounds: 3, traitorCount: 0, story: "", genre: "", pace: "normal", sides: {} }, seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
 
 let voiceFailedShown = false;
 const voice = createVoice({
@@ -155,8 +155,9 @@ function startGame(seed) {
         players: game.roster.map((p) => ({ id: p.id, name: p.name })),
         seed: game.seed,
         rounds: game.custom.rounds,
-        traitorCount: game.custom.traitorCount,
+        traitorCount: game.custom.traitorCount || null,
         personalities: game.roster.map((p) => p.personality || ""),
+        traitors: game.roster.map((p) => (p.side === "traitor" ? true : p.side === "innocent" ? false : null)),
     });
     game.revealIndex = 0;
     game.voteIndex = 0;
@@ -172,6 +173,7 @@ function startGame(seed) {
                 playerCount: game.roster.length,
                 seedHint: String(game.seed),
                 story: game.custom.story || "",
+                genre: game.custom.genre || "",
             });
             engine.setScenario(game.g, scenario);
             engine.assignRoles(game.g);
@@ -238,7 +240,7 @@ async function runDiscussion() {
             scene3d.highlight(p.id);
             scene3d.setCameraShot(`focus:${p.id}`);
             refresh();
-            await sleep(650); // a beat of silence before they speak
+            await sleep(PACE_MS[game.custom.pace] ?? 650); // paced beat before they speak
             const secret = engine.secretFor(game.g, p.id);
             const text = await banter.speak({
                 name: p.name,
@@ -525,20 +527,120 @@ canvas.addEventListener("click", (event) => {
     }
 });
 
+// ---------------------------------------------------------------- custom screen
+
+const PACE_MS = { brisk: 350, normal: 650, dramatic: 1100 };
+
+function renderCast() {
+    const wrap = document.getElementById("cast");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    for (const p of game.roster) {
+        const row = document.createElement("div");
+        row.className = "row1";
+        const name = document.createElement("input");
+        name.type = "text";
+        name.value = p.name;
+        name.maxLength = 16;
+        name.onchange = () => { p.name = name.value.trim() || p.name; };
+        const pers = document.createElement("input");
+        pers.type = "text";
+        pers.value = p.personality || "";
+        pers.placeholder = "personality — e.g. nervous and over-explains";
+        pers.maxLength = 120;
+        pers.onchange = () => { p.personality = pers.value.trim(); };
+        const side = document.createElement("select");
+        for (const [v, label] of [["auto", "Any side"], ["innocent", "Innocent"], ["traitor", "Traitor"]]) {
+            const o = document.createElement("option");
+            o.value = v;
+            o.textContent = label;
+            side.appendChild(o);
+        }
+        side.value = p.side || "auto";
+        side.onchange = () => { p.side = side.value; };
+        const del = document.createElement("button");
+        del.className = "del";
+        del.textContent = "×";
+        del.onclick = () => { game.roster = game.roster.filter((x) => x.id !== p.id); renderCast(); };
+        row.append(name, pers, side, del);
+        wrap.appendChild(row);
+    }
+}
+
+function openCustom() {
+    const screen = document.getElementById("custom");
+    if (!screen) return;
+    if (game.roster.length === 0) {
+        for (const n of ["Ada", "Bo", "Cy", "Dee"]) {
+            game.roster.push({ id: `p${Date.now()}${game.roster.length}`, name: n, personality: "", side: "auto" });
+        }
+    }
+    document.getElementById("c-story").value = game.custom.story || "";
+    document.getElementById("c-genre").value = game.custom.genre || "";
+    document.getElementById("c-rounds").value = String(game.custom.rounds || 3);
+    document.getElementById("c-traitors").value = String(game.custom.traitorCount ?? 0);
+    document.getElementById("c-pace").value = game.custom.pace || "normal";
+    renderCast();
+    screen.classList.remove("hidden");
+}
+
+function closeCustom() {
+    document.getElementById("custom")?.classList.add("hidden");
+}
+
+function readCustom() {
+    game.custom.story = document.getElementById("c-story").value.trim();
+    game.custom.genre = document.getElementById("c-genre").value;
+    game.custom.rounds = Math.max(1, Math.min(8, Number(document.getElementById("c-rounds").value) || 3));
+    game.custom.traitorCount = Math.max(0, Math.min(5, Number(document.getElementById("c-traitors").value) || 0));
+    game.custom.pace = document.getElementById("c-pace").value || "normal";
+    // side -> forcedTraitor flag for the engine
+    game.custom.sides = {};
+    for (const p of game.roster) game.custom.sides[p.id] = p.side;
+}
+
+document.getElementById("splash-custom")?.addEventListener("click", openCustom);
+document.getElementById("custom-back")?.addEventListener("click", closeCustom);
+document.getElementById("cast-add")?.addEventListener("click", () => {
+    if (game.roster.length >= engine.MAX_PLAYERS) return;
+    game.roster.push({ id: `p${Date.now()}${game.roster.length}`, name: `Player ${game.roster.length + 1}`, personality: "", side: "auto" });
+    renderCast();
+});
+document.getElementById("custom-start")?.addEventListener("click", () => {
+    if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
+    if (game.roster.length < engine.MIN_PLAYERS) return showError(`Need at least ${engine.MIN_PLAYERS} players.`);
+    readCustom();
+    closeCustom();
+    game.customMode = true;
+    startShow();
+});
+
 // ---------------------------------------------------------------- splash + auth
 
 $("splash-connect").addEventListener("click", () => api.connect().catch((e) => showError(e.message)));
-$("splash-start").addEventListener("click", () => {
-    if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
+function startShow() {
     game.entered = true;
     audio.start(); // needs the user gesture
     voice.unlock(); // prime the audio element
     $("splash").classList.add("leaving");
+    document.getElementById("custom")?.classList.add("hidden");
     setTimeout(() => {
         $("splash").classList.add("hidden");
         scene3d.setCameraShot("overview");
-        refresh();
+        startGame();
     }, 700);
+}
+
+$("splash-start").addEventListener("click", () => {
+    if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
+    game.customMode = false;
+    // quick game: the default cast if none was set up
+    if (game.roster.length === 0) {
+        for (const n of ["Ada", "Bo", "Cy", "Dee", "Eli"]) {
+            game.roster.push({ id: `p${Date.now()}${game.roster.length}`, name: n, personality: "", side: "auto" });
+        }
+    }
+    startShow();
 });
 
 (async () => {
