@@ -29,7 +29,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
+const game = { g: null, roster: [], custom: { rounds: 3, traitorCount: 1, scenario: null }, seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
 
 let voiceFailedShown = false;
 const voice = createVoice({
@@ -64,7 +64,17 @@ function buildView() {
         return { phase: "" };
     }
     if (!game.g) {
-        return { phase: "lobby", card: { kind: "lobby", players: game.roster, minPlayers: engine.MIN_PLAYERS } };
+        return {
+            phase: "lobby",
+            card: {
+                kind: "lobby",
+                players: game.roster,
+                minPlayers: engine.MIN_PLAYERS,
+                maxPlayers: engine.MAX_PLAYERS,
+                custom: game.custom,
+                defaultRounds: engine.ROUNDS,
+            },
+        };
     }
     const pub = engine.publicState(game.g);
     const base = { phase: pub.phase, round: pub.round, totalRounds: pub.totalRounds, busy };
@@ -141,7 +151,13 @@ function refresh() {
 
 function startGame(seed) {
     game.seed = seed ?? (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-    game.g = engine.createGame({ players: game.roster.map((p) => ({ id: p.id, name: p.name })), seed: game.seed });
+    game.g = engine.createGame({
+        players: game.roster.map((p) => ({ id: p.id, name: p.name })),
+        seed: game.seed,
+        rounds: game.custom.rounds,
+        traitorCount: game.custom.traitorCount,
+        personalities: game.roster.map((p) => p.personality || ""),
+    });
     game.revealIndex = 0;
     game.voteIndex = 0;
     game.voteOrder = [];
@@ -152,7 +168,10 @@ function startGame(seed) {
 
     (async () => {
         try {
-            const scenario = await host.scenario({ playerCount: game.roster.length, seedHint: String(game.seed) });
+            const scenario =
+                game.custom.scenario && game.custom.scenario.roles?.length >= 5
+                    ? game.custom.scenario
+                    : await host.scenario({ playerCount: game.roster.length, seedHint: String(game.seed) });
             engine.setScenario(game.g, scenario);
             engine.assignRoles(game.g);
             engine.beginBriefing(game.g);
@@ -229,6 +248,7 @@ async function runDiscussion() {
                 twist: engine.currentTwist(game.g),
                 round: game.g.round,
                 transcript: game.transcript,
+                personality: secret.personality || "",
             });
             game.transcript.push({ name: p.name, line: text });
             voice.say(text, game.voices.players[i] ?? game.voices.host);
@@ -410,10 +430,27 @@ function handleEvent(event, value) {
     switch (event) {
         case "add-player":
             if (game.roster.length < engine.MAX_PLAYERS) {
-                game.roster.push({ id: `p${Date.now()}${game.roster.length}`, name: String(value).slice(0, 16) });
+                game.roster.push({ id: `p${Date.now()}${game.roster.length}`, name: String(value).slice(0, 16), personality: "" });
                 refresh();
             }
             break;
+        case "rename-player": {
+            const r = game.roster.find((x) => x.id === value.id);
+            if (r) r.name = String(value.name || r.name).slice(0, 16);
+            refresh();
+            break;
+        }
+        case "set-personality": {
+            const r = game.roster.find((x) => x.id === value.id);
+            if (r) r.personality = String(value.personality || "").slice(0, 120);
+            refresh();
+            break;
+        }
+        case "set-custom": {
+            game.custom = { ...game.custom, ...value };
+            refresh();
+            break;
+        }
         case "remove-player":
             game.roster = game.roster.filter((p) => p.id !== value);
             refresh();

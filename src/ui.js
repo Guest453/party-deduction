@@ -54,6 +54,15 @@ export function createUI({ mount, on = () => {} }) {
             .pz-row { display:flex; gap:.6rem; justify-content:center; margin-top:1rem; flex-wrap:wrap; }
             .pz-input { font:inherit; color:var(--pz-ink); background:rgba(10,7,32,.9); border:2px solid rgba(34,230,255,.3); border-radius:999px; padding:.65rem 1rem; }
             .pz-input:focus { outline:none; border-color:var(--pz-cyan); }
+            .pz-custom { margin: 1rem 0; text-align: left; border-top: 1px solid rgba(34,230,255,.2); padding-top: .9rem; }
+            .pz-custom summary { cursor: pointer; color: var(--pz-cyan); font-weight: 800; letter-spacing: .04em; }
+            .pz-custom label { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin: .5rem 0; font-size: .92rem; }
+            .pz-custom input[type=text], .pz-custom input[type=number], .pz-custom textarea {
+                font: inherit; color: var(--pz-ink); background: rgba(10,7,32,.9); border: 2px solid rgba(34,230,255,.3); border-radius: 10px; padding: .45rem .6rem; width: 60%;
+            }
+            .pz-custom textarea { width: 100%; min-height: 4.5rem; resize: vertical; }
+            .pz-custom .who { display: flex; flex-direction: column; gap: .3rem; margin: .6rem 0; padding: .6rem; border-radius: 12px; background: rgba(255,255,255,.04); }
+            .pz-custom .who input { width: 100%; }
             .pz-toast { left:50%; top:5rem; transform:translateX(-50%); background:rgba(60,10,50,.95); border:1px solid var(--pz-magenta); border-radius:14px; padding:.6rem 1.1rem; max-width:42rem; box-shadow:0 0 30px rgba(255,62,165,.4); }
             .pz-flash { inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(2rem,9vw,5.5rem); font-weight:900; letter-spacing:.06em; color:#fff; text-shadow:0 0 30px rgba(34,230,255,.8),0 0 60px rgba(255,62,165,.6); pointer-events:none; opacity:0; transition:opacity .3s; }
             .pz-flash.on { opacity:1; }
@@ -142,7 +151,7 @@ export function createUI({ mount, on = () => {} }) {
                 const c = view.card;
                 if (c.kind === "lobby") {
                     card.append(el("h2", "", "Who's playing?"));
-                    card.append(el("p", "blurb", "4–10 players, one device. Secret roles, one or two traitors, and a host who never stops talking."));
+                    card.append(el("p", "blurb", "4–10 players, one device. Secret roles, one or two traitors, and an MC host."));
                     const list = el("div", "pz-players");
                     for (const p of c.players) {
                         const chip = el("span", "pz-chip", escapeHtml(p.name));
@@ -168,6 +177,65 @@ export function createUI({ mount, on = () => {} }) {
                     };
                     row.append(input, add);
                     card.appendChild(row);
+
+                    // ---- Custom Mode ----
+                    const custom = el("details", "pz-custom");
+                    custom.appendChild(el("summary", "", "Custom mode — write the cast, the story and the rules"));
+                    const cfg = c.custom || {};
+                    const rounds = el("label", "", "Rounds");
+                    const roundsIn = el("input");
+                    roundsIn.type = "number";
+                    roundsIn.min = "1";
+                    roundsIn.max = "6";
+                    roundsIn.value = String(cfg.rounds ?? c.defaultRounds ?? 3);
+                    roundsIn.onchange = () => on("set-custom", { rounds: Math.max(1, Math.min(6, Number(roundsIn.value) || 3)) });
+                    rounds.appendChild(roundsIn);
+                    custom.appendChild(rounds);
+
+                    const traitors = el("label", "", "Traitors");
+                    const traitorsIn = el("input");
+                    traitorsIn.type = "number";
+                    traitorsIn.min = "1";
+                    traitorsIn.max = "4";
+                    traitorsIn.value = String(cfg.traitorCount ?? 1);
+                    traitorsIn.onchange = () => on("set-custom", { traitorCount: Math.max(1, Math.min(4, Number(traitorsIn.value) || 1)) });
+                    traitors.appendChild(traitorsIn);
+                    custom.appendChild(traitors);
+
+                    custom.appendChild(el("p", "blurb", "Personalities — how each player argues (optional):"));
+                    for (const p of c.players) {
+                        const who = el("div", "who");
+                        const nameIn = el("input");
+                        nameIn.type = "text";
+                        nameIn.value = p.name;
+                        nameIn.maxLength = 16;
+                        nameIn.onchange = () => on("rename-player", { id: p.id, name: nameIn.value.trim() || p.name });
+                        const persIn = el("input");
+                        persIn.type = "text";
+                        persIn.placeholder = "e.g. nervous and over-explains";
+                        persIn.value = p.personality || "";
+                        persIn.maxLength = 120;
+                        persIn.onchange = () => on("set-personality", { id: p.id, personality: persIn.value });
+                        who.append(nameIn, persIn);
+                        custom.appendChild(who);
+                    }
+
+                    const scen = el("textarea");
+                    scen.placeholder = 'Optional: your own scenario as JSON — {"title":"…","premise":"…","location":"…","roles":[{"name":"…","blurb":"…"}],"twists":["…","…"]}';
+                    scen.value = cfg.scenario ? JSON.stringify(cfg.scenario) : "";
+                    scen.onchange = () => {
+                        const text = scen.value.trim();
+                        if (!text) return on("set-custom", { scenario: null });
+                        try {
+                            const parsed = JSON.parse(text);
+                            on("set-custom", { scenario: parsed });
+                        } catch {
+                            on("set-custom", { scenario: null });
+                        }
+                    };
+                    custom.appendChild(scen);
+                    card.appendChild(custom);
+
                     const start = el("button", "pz-btn primary", "Start the show");
                     start.disabled = (c.players?.length ?? 0) < c.minPlayers;
                     start.onclick = () => on("start");

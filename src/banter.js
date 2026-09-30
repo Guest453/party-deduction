@@ -30,7 +30,7 @@ export function createBanter({ ask, model = "openai/gpt-5.4-nano" }) {
      * @param {number} p.round
      * @param {Array<{name:string,line:string}>} p.transcript  what has been said
      */
-    async function speak({ name, roleName, objective, traitor, location, twist, round, transcript = [] }) {
+    async function speak({ name, roleName, objective, traitor, location, twist, round, transcript = [], personality = "" }) {
         const prior = transcript.slice(-6).map((t) => `${t.name}: ${t.line}`).join("\n") || "(nothing yet)";
         const system =
             `You are ${name}, a guest in a social-deduction party game at ${location}. ` +
@@ -38,7 +38,8 @@ export function createBanter({ ask, model = "openai/gpt-5.4-nano" }) {
             (traitor
                 ? `You ARE a traitor: you must lie convincingly, deflect suspicion onto others, and never admit it. `
                 : `You are innocent and want to find the traitors. `) +
-            `Speak in first person, in character.`;
+            `Speak in first person, in character.` +
+            (personality ? ` Your personality: ${personality}. Let that colour how you speak.` : ``);
         const user =
             `It is round ${round} of the discussion.${twist ? ` The twist: ${twist}.` : ""}\n` +
             `What has been said so far:\n${prior}\n\n` +
