@@ -29,7 +29,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], custom: { rounds: 3, traitorCount: 1, scenario: null }, seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
+const game = { g: null, roster: [], custom: { rounds: 3, traitorCount: 1, story: "" }, seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
 
 let voiceFailedShown = false;
 const voice = createVoice({
@@ -168,10 +168,11 @@ function startGame(seed) {
 
     (async () => {
         try {
-            const scenario =
-                game.custom.scenario && game.custom.scenario.roles?.length >= 5
-                    ? game.custom.scenario
-                    : await host.scenario({ playerCount: game.roster.length, seedHint: String(game.seed) });
+            const scenario = await host.scenario({
+                playerCount: game.roster.length,
+                seedHint: String(game.seed),
+                story: game.custom.story || "",
+            });
             engine.setScenario(game.g, scenario);
             engine.assignRoles(game.g);
             engine.beginBriefing(game.g);

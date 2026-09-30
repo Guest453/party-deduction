@@ -304,13 +304,16 @@ export function createHost({ ask, model = DEFAULT_MODEL } = {}) {
 
   // --- scenario -------------------------------------------------------------
 
-  async function scenario({ playerCount, seedHint } = {}) {
+  async function scenario({ playerCount, seedHint, story } = {}) {
     const count = Number(playerCount) || MIN_ROLES;
     const want = Math.max(MIN_ROLES, Math.min(10, count));
     const hint = seedHint == null ? "none" : String(seedHint);
+    const idea = story && String(story).trim();
     const base =
       `Invent a new mystery scenario for ${want} players. ` +
-      `Use the seed hint for flavour: ${hint}. ` +
+      (idea
+        ? `Build it around the organiser's idea: "${String(idea).trim()}". Keep their setting and tone. `
+        : `Use the seed hint for flavour: ${hint}. `) +
       `Return the JSON object only.`;
 
     for (let attempt = 0; attempt < 2; attempt++) {

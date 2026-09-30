@@ -220,20 +220,14 @@ export function createUI({ mount, on = () => {} }) {
                         custom.appendChild(who);
                     }
 
-                    const scen = el("textarea");
-                    scen.placeholder = 'Optional: your own scenario as JSON — {"title":"…","premise":"…","location":"…","roles":[{"name":"…","blurb":"…"}],"twists":["…","…"]}';
-                    scen.value = cfg.scenario ? JSON.stringify(cfg.scenario) : "";
-                    scen.onchange = () => {
-                        const text = scen.value.trim();
-                        if (!text) return on("set-custom", { scenario: null });
-                        try {
-                            const parsed = JSON.parse(text);
-                            on("set-custom", { scenario: parsed });
-                        } catch {
-                            on("set-custom", { scenario: null });
-                        }
-                    };
-                    custom.appendChild(scen);
+                    custom.appendChild(el("p", "blurb", "Your story (optional) — the host builds the scenario around it:"));
+                    const story = el("textarea");
+                    story.placeholder = "A murder on a snowbound night train in 1934, among a travelling opera company.";
+                    story.value = cfg.story || "";
+                    story.maxLength = 400;
+                    story.onchange = () => on("set-custom", { story: story.value.trim() });
+                    custom.appendChild(story);
+
                     card.appendChild(custom);
 
                     const start = el("button", "pz-btn primary", "Start the show");
