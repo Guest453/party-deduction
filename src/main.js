@@ -9,6 +9,7 @@ import { createVoice } from "./voice.js";
 import { createScene } from "./scene.js";
 import { createUI } from "./ui.js";
 import { createDebug } from "./debug.js";
+import { createBanter } from "./banter.js";
 
 const $ = (id) => document.getElementById(id);
 const banner = $("banner");
@@ -27,7 +28,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false };
+const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false };
 
 const voice = createVoice({
     speak: (text, v) => api.speak(text, v),
@@ -37,6 +38,7 @@ const voice = createVoice({
 
 const ui = createUI({ mount: document.body, on: handleEvent });
 const debug = createDebug();
+const banter = createBanter({ ask: (req) => api.ask(req), model: api.model });
 const host = createHost({ ask: (req) => api.ask(req), model: api.model });
 
 // ---------------------------------------------------------------- view
@@ -67,10 +69,13 @@ function buildView() {
         return { ...base, card: { kind: "roles", roles } };
     }
     if (pub.phase === "round") {
+        const last = game.transcript[game.transcript.length - 1];
+        const speaking = game.speakingId ? game.g.players.find((p) => p.id === game.speakingId) : null;
         return {
             ...base,
-            subtitle: pub.twist,
-            actions: [{ label: "Call the vote", event: "start-vote", kind: "primary" }],
+            subtitleWho: speaking ? speaking.name : "Host",
+            subtitle: last ? last.line : pub.twist,
+            actions: [{ label: game.banterRunning ? "Talking…" : "Call the vote", event: "start-vote", kind: "primary", disabled: game.banterRunning }],
         };
     }
     if (pub.phase === "vote") {
@@ -169,10 +174,69 @@ function beginRound() {
     debug.log("beginRound -> round " + game.g.round);
     scene3d.setPhase("round");
     scene3d.setCameraShot("orbit");
+    game.transcript = [];
+    game.banterIndex = 0;
     refresh();
     const twist = engine.currentTwist(game.g);
-    voice.say("Round " + game.g.round + ". " + (twist ?? ""), game.voices.host);
-    host.narrate("twist", { ...publicCtx(), twist }).then((line) => voice.say(line, game.voices.host)).catch(() => {});
+    host
+        .narrate("twist", { ...publicCtx(), twist })
+        .then((line) => {
+            voice.say(line, game.voices.host);
+            return runDiscussion(); // then the AI players talk
+        })
+        .catch(() => runDiscussion());
+}
+
+// Each AI player takes a turn: they speak in character, accuse, or defend.
+async function runDiscussion() {
+    if (game.banterRunning) return;
+    game.banterRunning = true;
+    try {
+        const order = alivePlayers();
+        for (let i = 0; i < order.length; i++) {
+            const p = order[i];
+            game.banterIndex = i;
+            game.speakingId = p.id;
+            scene3d.highlight(p.id);
+            scene3d.setCameraShot(`focus:${p.id}`);
+            refresh();
+            const secret = engine.secretFor(game.g, p.id);
+            const text = await banter.speak({
+                name: p.name,
+                roleName: secret.roleName,
+                objective: secret.objective,
+                traitor: secret.traitor,
+                location: game.g.scenario?.location ?? "the table",
+                twist: engine.currentTwist(game.g),
+                round: game.g.round,
+                transcript: game.transcript,
+            });
+            game.transcript.push({ name: p.name, line: text });
+            voice.say(text, game.voices.players[i] ?? game.voices.host);
+            refresh();
+            await waitForVoice(text);
+        }
+    } finally {
+        game.banterRunning = false;
+        game.speakingId = null;
+        scene3d.setCameraShot("overview");
+        scene3d.highlight(null);
+        refresh();
+    }
+}
+
+// Wait until the queue has drained (and a small beat) so turns feel paced.
+function waitForVoice() {
+    return new Promise((resolve) => {
+        const started = Date.now();
+        const check = () => {
+            const busy = voice.isSpeaking() || voice.queue() > 0;
+            if (!busy && Date.now() - started > 400) resolve();
+            else if (Date.now() - started > 20000) resolve(); // never hang
+            else setTimeout(check, 220);
+        };
+        setTimeout(check, 400);
+    });
 }
 
 function openVote() {

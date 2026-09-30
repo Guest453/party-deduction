@@ -171,14 +171,14 @@ const OUTFITS = [
 // Per-phase mood: light intensities/colours, fog and background. Values are
 // eased toward, so switching phase flows rather than snaps.
 const PHASES = {
-  lobby:    { hemi: 0.62, key: 0.55, table: 10.0, accent: 3.0, hemiCol: 0xffd9a0, keyCol: 0xffdcae, tableCol: 0xffb060, accentCol: 0xff8a50, fogCol: 0x120c08, bgCol: 0x120c08, fogNear: 8, fogFar: 26, lean: 0 },
-  briefing: { hemi: 0.24, key: 0.30, table: 4.5, accent: 2.4, hemiCol: 0x9fb4d8, keyCol: 0x9fb4d8, tableCol: 0x6f86b0, accentCol: 0x4a6a9a, fogCol: 0x070a12, bgCol: 0x070a12, fogNear: 5, fogFar: 16, lean: 0.05 },
-  roles:    { hemi: 0.28, key: 0.34, table: 5.5, accent: 2.6, hemiCol: 0xcdb894, keyCol: 0xd8c49c, tableCol: 0xd0a060, accentCol: 0x7a6a9a, fogCol: 0x0b0810, bgCol: 0x0b0810, fogNear: 5, fogFar: 18, lean: 0.03 },
-  round:    { hemi: 0.42, key: 0.52, table: 8.5, accent: 2.2, hemiCol: 0xffd9a0, keyCol: 0xffd6a0, tableCol: 0xffb060, accentCol: 0x7a6a9a, fogCol: 0x0d0a08, bgCol: 0x0d0a08, fogNear: 7, fogFar: 22, lean: 0 },
-  vote:     { hemi: 0.30, key: 0.42, table: 7.5, accent: 3.4, hemiCol: 0xff9a86, keyCol: 0xff9a86, tableCol: 0xff6a4a, accentCol: 0xa02020, fogCol: 0x140606, bgCol: 0x140606, fogNear: 5, fogFar: 18, lean: 0.14 },
-  result:   { hemi: 0.26, key: 0.46, table: 9.0, accent: 2.0, hemiCol: 0xffd0a0, keyCol: 0xffd0a0, tableCol: 0xffa050, accentCol: 0x8a5a3a, fogCol: 0x0b0806, bgCol: 0x0b0806, fogNear: 5, fogFar: 18, lean: 0.04 },
-  reveal:   { hemi: 0.20, key: 0.36, table: 12.0, accent: 2.6, hemiCol: 0xcfe0ff, keyCol: 0xcfe0ff, tableCol: 0xffe0b0, accentCol: 0x5070b0, fogCol: 0x05070e, bgCol: 0x05070e, fogNear: 4, fogFar: 20, lean: 0 },
-  ended:    { hemi: 0.34, key: 0.40, table: 7.0, accent: 2.2, hemiCol: 0xd8c8a8, keyCol: 0xd8c8a8, tableCol: 0xd8a860, accentCol: 0x6a5a7a, fogCol: 0x0a0806, bgCol: 0x0a0806, fogNear: 7, fogFar: 24, lean: 0 },
+  lobby:    { hemi: 1.05, key: 1.15, table: 14, accent: 4.5, hemiCol: 0xffd9a0, keyCol: 0xffdcae, tableCol: 0xffb060, accentCol: 0xff8a50, fogCol: 0x120c08, bgCol: 0x120c08, fogNear: 8, fogFar: 26, lean: 0 },
+  briefing: { hemi: 0.7, key: 0.9, table: 8, accent: 4, hemiCol: 0x9fb4d8, keyCol: 0x9fb4d8, tableCol: 0x6f86b0, accentCol: 0x4a6a9a, fogCol: 0x070a12, bgCol: 0x070a12, fogNear: 5, fogFar: 16, lean: 0.05 },
+  roles:    { hemi: 0.8, key: 1, table: 9.5, accent: 4.2, hemiCol: 0xcdb894, keyCol: 0xd8c49c, tableCol: 0xd0a060, accentCol: 0x7a6a9a, fogCol: 0x0b0810, bgCol: 0x0b0810, fogNear: 5, fogFar: 18, lean: 0.03 },
+  round:    { hemi: 0.95, key: 1.15, table: 12.5, accent: 3.8, hemiCol: 0xffd9a0, keyCol: 0xffd6a0, tableCol: 0xffb060, accentCol: 0x7a6a9a, fogCol: 0x0d0a08, bgCol: 0x0d0a08, fogNear: 7, fogFar: 22, lean: 0 },
+  vote:     { hemi: 0.85, key: 1, table: 11, accent: 5, hemiCol: 0xff9a86, keyCol: 0xff9a86, tableCol: 0xff6a4a, accentCol: 0xa02020, fogCol: 0x140606, bgCol: 0x140606, fogNear: 5, fogFar: 18, lean: 0.14 },
+  result:   { hemi: 0.8, key: 1.05, table: 12, accent: 3.6, hemiCol: 0xffd0a0, keyCol: 0xffd0a0, tableCol: 0xffa050, accentCol: 0x8a5a3a, fogCol: 0x0b0806, bgCol: 0x0b0806, fogNear: 5, fogFar: 18, lean: 0.04 },
+  reveal:   { hemi: 0.75, key: 0.95, table: 15, accent: 4.2, hemiCol: 0xcfe0ff, keyCol: 0xcfe0ff, tableCol: 0xffe0b0, accentCol: 0x5070b0, fogCol: 0x05070e, bgCol: 0x05070e, fogNear: 4, fogFar: 20, lean: 0 },
+  ended:    { hemi: 0.85, key: 1, table: 10, accent: 3.8, hemiCol: 0xd8c8a8, keyCol: 0xd8c8a8, tableCol: 0xd8a860, accentCol: 0x6a5a7a, fogCol: 0x0a0806, bgCol: 0x0a0806, fogNear: 7, fogFar: 24, lean: 0 },
 };
 
 const OVERVIEW_POS = [0, 4.3, 5.4];
@@ -368,7 +368,7 @@ export function createScene(canvas, THREE) {
       if ("outputColorSpace" in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
       if ("toneMapping" in renderer && THREE.ACESFilmicToneMapping) {
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.05;
+        renderer.toneMappingExposure = 1.28;
       }
       const pr = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
       renderer.setPixelRatio(Math.min(pr, 2));
@@ -972,6 +972,14 @@ export function createScene(canvas, THREE) {
   function avatarObjects() {
     return avatars.map((a) => a.group).filter(Boolean);
   }
+
+  // Two soft fill lights so the room reads even in the dim phases.
+  const fillA = new THREE.PointLight(0xffd9a0, 0.5, 16, 2);
+  fillA.position.set(4.2, 3.4, 3.6);
+  scene.add(fillA);
+  const fillB = new THREE.PointLight(0x9fd0ff, 0.4, 16, 2);
+  fillB.position.set(-4.4, 3.2, -3.4);
+  scene.add(fillB);
 
   // Seed the lobby mood immediately.
   setPhase("lobby");
