@@ -1,0 +1,18 @@
+{
+    "name": "party-deduction",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "description": "An AI-hosted 3D social-deduction party game. Secret roles, narrated rounds, spoken votes. Pay with your own Pollen.",
+    "scripts": {
+        "build": "esbuild src/main.js --bundle --format=esm --outfile=dist/bundle.js --minify && node scripts/stamp.mjs",
+        "dev": "esbuild src/main.js --bundle --format=esm --outfile=dist/bundle.js --watch",
+        "test": "node --test test/*.test.mjs"
+    },
+    "dependencies": {
+        "three": "^0.180.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.0"
+    }
+}

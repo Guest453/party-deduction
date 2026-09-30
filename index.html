@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Party Deduction — an AI host, secret traitors, one table</title>
+        <meta name="description" content="A 3D social-deduction party game with an AI host: secret roles, narrated rounds, spoken votes. 4-10 players, one device. Pay with your own Pollen." />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#127917;</text></svg>" />
+        <link rel="preconnect" href="https://gen.pollinations.ai" />
+        <style>
+            :root { --ink: #f6ecdd; --dim: #c9b39a; --gold: #e6b96a; --gold-soft: #f0d39a; --line: rgba(150,116,78,.34); --panel: rgba(24,18,13,.86); --ease: cubic-bezier(.22,1,.36,1); }
+            * { box-sizing: border-box; }
+            html, body { height: 100%; }
+            body { margin: 0; background: #0b0907; color: var(--ink); overflow: hidden; font: 16px/1.55 "Iowan Old Style","Palatino Linotype",Georgia,serif; -webkit-font-smoothing: antialiased; }
+            canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+            .hidden { display: none !important; }
+            #splash { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-columns: minmax(20rem, 30rem) 1fr; transition: opacity .7s var(--ease), transform .7s var(--ease); }
+            #splash::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(11,9,7,.96) 0%, rgba(11,9,7,.8) 32%, rgba(11,9,7,.16) 58%, rgba(11,9,7,0) 78%); }
+            #splash.leaving { opacity: 0; transform: scale(1.03); pointer-events: none; }
+            .menu { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 1.1rem; padding: 2.4rem clamp(1.4rem,4vw,3rem); border-right: 1px solid var(--line); background: linear-gradient(180deg, rgba(18,14,10,.86), rgba(12,9,7,.94)); backdrop-filter: blur(7px); }
+            .kicker { color: var(--gold); font-size: .78rem; letter-spacing: .32em; text-transform: uppercase; }
+            h1 { font-size: clamp(2.4rem,5vw,3.6rem); line-height: .98; margin: 0; }
+            h1 em { font-style: normal; color: var(--gold); display: block; }
+            .lede { color: var(--dim); margin: 0; max-width: 26rem; }
+            button { font: inherit; color: var(--ink); cursor: pointer; background: linear-gradient(180deg, rgba(58,45,34,.96), rgba(38,29,22,.96)); border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1.1rem; transition: transform .18s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease); box-shadow: 0 4px 14px rgba(0,0,0,.35); position: relative; overflow: hidden; }
+            button::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, transparent 30%, rgba(255,240,210,.2) 50%, transparent 70%); transform: translateX(-120%); transition: transform .6s var(--ease); }
+            button:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--gold); }
+            button:hover:not(:disabled)::after { transform: translateX(120%); }
+            button:disabled { opacity: .45; cursor: not-allowed; }
+            button.primary { background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #2a1c10; border-color: #f0cf95; font-weight: 700; }
+            #splash button { text-align: left; }
+            #splash button .sub { display: block; font-size: .78rem; opacity: .72; font-weight: 400; margin-top: .15rem; }
+            .status { color: var(--dim); font-size: .85rem; min-height: 1.2em; }
+            .hint { color: var(--dim); font-size: .82rem; opacity: .85; }
+            .hint kbd { font: inherit; font-size: .78rem; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: .05rem .35rem; }
+            .menu footer { color: var(--dim); font-size: .76rem; opacity: .8; margin-top: .6rem; }
+            #banner { position: fixed; z-index: 40; top: 4.6rem; left: 50%; transform: translateX(-50%); max-width: 42rem; background: rgba(62,22,20,.95); border: 1px solid #e06a62; border-radius: 12px; padding: .65rem 1.05rem; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+            @media (max-width: 780px) { #splash { grid-template-columns: 1fr; } #splash::after { background: linear-gradient(180deg, rgba(11,9,7,.2) 0%, rgba(11,9,7,.85) 55%, rgba(11,9,7,.97) 100%); } .menu { border-right: 0; border-top: 1px solid var(--line); justify-content: flex-end; } }
+            @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
+        </style>
+    </head>
+    <body>
+        <div id="banner" class="hidden"></div>
+
+        <div id="splash">
+            <div class="menu">
+                <div class="kicker">An AI host · one table · 4–10 players</div>
+                <h1>Party<br /><em>Deduction</em></h1>
+                <p class="lede">Everyone gets a secret role. One or two are traitors, lying to the group. A host narrates every round out loud, hands out the roles, and reads the votes — then the table decides who goes.</p>
+                <div style="display: flex; flex-direction: column; gap: .7rem">
+                    <button id="splash-connect" class="primary">Connect Pollen<span class="sub">You pay with your own Pollen. Nothing is billed until a round starts.</span></button>
+                    <button id="splash-start" disabled>Set up the table<span class="sub">Pass one device around the room</span></button>
+                </div>
+                <div class="status" id="splash-hint">Sign in to begin.</div>
+                <div class="hint"><kbd>Pass &amp; play</kbd> — one device, secrets revealed one at a time. The host reads everything aloud.</div>
+                <footer>Roles and votes are decided in code; the host is a Pollinations text model and Pollinations TTS.</footer>
+            </div>
+            <div aria-hidden="true"></div>
+        </div>
+
+        <link rel="modulepreload" href="./dist/bundle.js?v=1790748937988" />
+        <script type="module" src="./dist/bundle.js?v=1790748937988"></script>
+    </body>
+</html>
