@@ -64,9 +64,8 @@ function buildView() {
         return { ...base, actions: [{ label: "Deal the roles", event: "roles", kind: "primary" }] };
     }
     if (pub.phase === "roles") {
-        // One screen, everyone's role at a glance — no passing the device around.
-        const roles = game.g.players.map((p) => ({ name: p.name, ...engine.secretFor(game.g, p.id) }));
-        return { ...base, card: { kind: "roles", roles } };
+        // The roles are dealt on screen and never shown — watch the cutscene.
+        return { ...base, subtitleWho: "Host", subtitle: game.dealLine ?? "The roles are dealt, one by one. Nobody sees another's card." };
     }
     if (pub.phase === "round") {
         const last = game.transcript[game.transcript.length - 1];
@@ -81,11 +80,11 @@ function buildView() {
     if (pub.phase === "vote") {
         const voter = game.voteOrder[game.voteIndex];
         const player = game.g.players.find((p) => p.id === voter);
-        const targets = alivePlayers().filter((p) => p.id !== voter);
         return {
             ...base,
-            voteHint: `${game.voteOrder.length - game.voteIndex} vote(s) left`,
-            card: { kind: "vote", voterId: voter, voterName: player ? player.name : "", targets },
+            voteHint: `${Math.max(0, game.voteOrder.length - game.voteIndex)} vote(s) left`,
+            subtitleWho: player ? player.name : "Host",
+            subtitle: game.voteLine ?? `${player ? player.name : "Someone"} is voting…`,
         };
     }
     if (pub.phase === "result") {
@@ -239,15 +238,79 @@ function waitForVoice() {
     });
 }
 
+// The host deals each player a card on screen; each looks at it and looks away.
+async function playDealCutscene() {
+    engine.nextPhase(game.g); // briefing -> roles (assign done)
+    scene3d.setPhase("roles");
+    scene3d.setCameraShot("orbit");
+    refresh();
+    try {
+        const line = await host.narrate("roles", publicCtx());
+        game.dealLine = line;
+        voice.say(line, game.voices.host);
+        await waitForVoice();
+        for (let i = 0; i < game.g.players.length; i++) {
+            const p = game.g.players[i];
+            scene3d.setCameraShot(`focus:${p.id}`);
+            scene3d.highlight(p.id);
+            scene3d.dealCard(p.id);
+            const beat = `${p.name} takes a card, reads it, and looks away.`;
+            game.dealLine = beat;
+            refresh();
+            voice.say(beat, game.voices.players[i] ?? game.voices.host);
+            await waitForVoice();
+        }
+        scene3d.highlight(null);
+    } finally {
+        engine.nextPhase(game.g); // roles -> round
+        beginRound();
+    }
+}
+
 function openVote() {
     engine.openVote(game.g);
     debug.log("openVote, voters=" + alivePlayers().length);
     game.voteOrder = alivePlayers().map((p) => p.id);
     game.voteIndex = 0;
     scene3d.setPhase("vote");
-    scene3d.setCameraShot(`focus:${game.voteOrder[0] ?? "overview"}`);
     refresh();
     host.narrate("vote", publicCtx()).then((line) => voice.say(line, game.voices.host)).catch(() => {});
+    runAutoVote();
+}
+
+// Every alive player votes on their own: traitors pick an innocent, innocents
+// pick the most suspicious. The host reads the result.
+async function runAutoVote() {
+    const alive = () => alivePlayers();
+    while (game.g.phase === "vote") {
+        const voterId = game.voteOrder[game.voteIndex];
+        const voter = game.g.players.find((p) => p.id === voterId);
+        if (!voter) break;
+        scene3d.setCameraShot(`focus:${voterId}`);
+        scene3d.highlight(voterId);
+        const others = alive().filter((p) => p.id !== voterId);
+        if (!others.length) break;
+        // policy: a traitor avoids other traitors; everyone targets whoever most
+        // recently named them in the transcript, else a neighbour.
+        const traitorIds = new Set(game.g.players.filter((p) => p.traitor).map((p) => p.id));
+        let pool = others;
+        if (voter.traitor) pool = others.filter((p) => !traitorIds.has(p.id));
+        if (!pool.length) pool = others;
+        const named = game.transcript.slice().reverse().find((t) => t.line && t.line.includes(voter.name));
+        const target =
+            (named && pool.find((p) => p.name === named.name)) ||
+            pool[Math.floor(Math.random() * pool.length)];
+        game.voteLine = `${voter.name} votes for ${target.name}.`;
+        refresh();
+        engine.castVote(game.g, voterId, target.id);
+        scene3d.vote(voterId, target.id);
+        voice.say(game.voteLine, game.voices.players[game.voteIndex] ?? game.voices.host);
+        game.voteIndex += 1;
+        await waitForVoice();
+        refresh();
+    }
+    scene3d.highlight(null);
+    afterVote();
 }
 
 function afterVote() {
@@ -293,10 +356,7 @@ function handleEvent(event, value) {
             startGame();
             break;
         case "roles": {
-            // briefing -> roles (assign already done), show the list, then begin.
-            scene3d.setPhase("roles");
-            engine.nextPhase(g); // roles -> round
-            beginRound();
+            playDealCutscene();
             break;
         }
         case "begin-round":

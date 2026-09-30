@@ -649,6 +649,10 @@ export function createScene(canvas, THREE) {
       part(headPivot, G.cyl, M.dark, [0, 0.29, 0], [0.085, 0.05, 0.085]);
     }
 
+    // ---- a secret card held at the chest (revealed only to look at it) ----
+    const secretCard = part(upper, G.box, M.accent, [0, 0.34, 0.24], [0.16, 0.22, 0.012]);
+    secretCard.visible = false;
+
     // ---- name card on the table, just in front of the seat ----
     const card = makeCardMesh(name, outfit.accent);
     card.mesh.position.set(0, 0.82, 0.7);
@@ -711,6 +715,9 @@ export function createScene(canvas, THREE) {
       slump: 0,
       dim: 0,
       label: { canvas: null, tex: null, mat: null, sprite: null },
+      secretCard,
+      deal: 0,       // 0 -> 1 while receiving a card
+      look: 0,       // 0 -> 1 -> 0 while glancing at it
     };
 
     // Every mesh and sprite carries the player id for raycast taps.
@@ -742,6 +749,20 @@ export function createScene(canvas, THREE) {
     const list = Array.isArray(players) ? players : [];
     avatars = list.map((p, i) => buildAvatar(p, i, list.length));
     for (const a of avatars) seats.set(a.id, a);
+  }
+
+  // Deal a secret card to one player, hold their gaze on it, then look away.
+  // Returns the duration (seconds) so the caller can pace the cutscene.
+  function dealCard(playerId) {
+    const a = seats.get(playerId);
+    if (!a) return 0;
+    a.deal = 1;
+    a.look = 1;
+    a.headYawTarget = 0;
+    setTimeout(() => {
+      if (a) a.look = 0; // look away — the role is never exposed to the room
+    }, 1200);
+    return 2.0;
   }
 
   function highlight(playerId) {
@@ -886,6 +907,21 @@ export function createScene(canvas, THREE) {
     a.headYaw += (a.headYawTarget - a.headYaw) * Math.min(1, dt * 2.2);
     a.headPivot.rotation.y = a.headYaw;
     a.headPivot.rotation.x = Math.sin(t * 1.1) * 0.02;
+
+    // the dealt card: it slides in, they glance down at it, then look away.
+    if (a.deal > 0 || a.look > 0) {
+      a.deal = Math.max(0, a.deal - dt * 1.4);
+      const dealt = 1 - a.deal;
+      a.secretCard.visible = true;
+      a.secretCard.position.y = 0.34 + a.deal * 0.5;
+      a.secretCard.position.z = 0.24 + a.deal * 0.5;
+      a.secretCard.rotation.z = a.deal * 0.6;
+      a.secretCard.material.emissiveIntensity = 0.4 + (a.look || 0) * 0.6;
+      // while looking, the head tilts down; once the look fades, the head comes up
+      const look = a.look || 0;
+      a.headPivot.rotation.x = Math.sin(t * 1.1) * 0.02 + look * 0.5;
+      if (dealt >= 1 && a.look <= 0) a.secretCard.visible = false;
+    }
   }
 
   // ---- vote tokens --------------------------------------------------------
@@ -995,6 +1031,7 @@ export function createScene(canvas, THREE) {
     resize, update,
     dispose,
     camera: () => camera,
+    dealCard,
     scene: () => scene,
     avatarObjects,
   };
