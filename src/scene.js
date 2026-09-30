@@ -214,7 +214,8 @@ export function createScene(canvas, THREE) {
   // once for the whole scene, never per avatar.
   const G = {
     box: regGeo(new THREE.BoxGeometry(1, 1, 1)),
-    sphere: regGeo(new THREE.SphereGeometry(1, 14, 11)),
+    sphere: regGeo(new THREE.SphereGeometry(1, 16, 12)),
+    capsule: regGeo(new THREE.CapsuleGeometry(0.5, 1, 6, 14)),
     cyl: regGeo(new THREE.CylinderGeometry(1, 1, 1, 16)),
     disc: regGeo(new THREE.CircleGeometry(1, 40)),
     ring: regGeo(new THREE.TorusGeometry(1, 0.06, 8, 32)),
@@ -576,12 +577,12 @@ export function createScene(canvas, THREE) {
     // ---- seated legs: thighs forward, shins down, feet flat ----
     const legs = new THREE.Group();
     for (const side of [-1, 1]) {
-      part(legs, G.box, M.dark, [side * 0.12, 0.44, 0.27], [0.16, 0.16, 0.46]);
-      part(legs, G.box, M.dark, [side * 0.12, 0.22, 0.5], [0.15, 0.4, 0.16]);
+      part(legs, G.capsule, M.dark, [side * 0.12, 0.44, 0.27], [0.17, 0.12, 0.3]);
+      part(legs, G.capsule, M.dark, [side * 0.12, 0.24, 0.5], [0.16, 0.19, 0.17]);
       part(legs, G.box, M.shoe, [side * 0.12, 0.04, 0.58], [0.16, 0.07, 0.24]);
     }
     group.add(legs);
-    part(group, G.box, outfit.style === "dress" ? M.main : M.dark, [0, 0.51, 0.02], [0.4, 0.2, 0.32]);
+    part(group, G.capsule, outfit.style === "dress" ? M.main : M.dark, [0, 0.51, 0.02], [0.4, 0.11, 0.34]);
     if (outfit.style === "dress") {
       part(group, G.cyl, M.main, [0, 0.42, 0.12], [0.3, 0.34, 0.26], [0.18, 0, 0]);
     }
@@ -591,8 +592,8 @@ export function createScene(canvas, THREE) {
     upper.position.set(0, 0.55, 0);
     group.add(upper);
 
-    part(upper, G.box, M.main, [0, 0.2, 0.01], [0.42, 0.38, 0.26]);
-    const chest = part(upper, G.box, M.main, [0, 0.48, 0.0], [0.48, 0.24, 0.29]);
+    part(upper, G.capsule, M.main, [0, 0.22, 0.01], [0.44, 0.19, 0.32]);
+    const chest = part(upper, G.capsule, M.main, [0, 0.48, 0.0], [0.48, 0.13, 0.32]);
     part(upper, G.box, M.shirt, [0, 0.48, 0.155], [0.15, 0.24, 0.02]);
     part(upper, G.box, M.accent, [0, 0.42, 0.165], [0.05, 0.22, 0.02]);
     if (outfit.style === "dress") {
@@ -609,11 +610,11 @@ export function createScene(canvas, THREE) {
       const shoulder = new THREE.Group();
       shoulder.position.set(side * 0.29, 0.55, 0.02);
       shoulder.rotation.z = -side * 0.12;
-      part(shoulder, G.box, M.main, [0, -0.16, 0.02], [0.13, 0.34, 0.14]);
+      part(shoulder, G.capsule, M.main, [0, -0.16, 0.02], [0.14, 0.16, 0.15]);
       const elbow = new THREE.Group();
       elbow.position.set(0, -0.31, 0.02);
       elbow.rotation.x = -1.45; // forearm folds forward onto the table
-      part(elbow, G.box, M.main, [0, -0.16, 0], [0.12, 0.32, 0.13]);
+      part(elbow, G.capsule, M.main, [0, -0.16, 0], [0.13, 0.15, 0.14]);
       part(elbow, G.sphere, M.skin, [0, -0.34, 0.01], [0.07, 0.06, 0.09]);
       shoulder.add(elbow);
       upper.add(shoulder);
@@ -626,7 +627,7 @@ export function createScene(canvas, THREE) {
     headPivot.position.set(0, 0.69, 0);
     upper.add(headPivot);
 
-    part(headPivot, G.box, M.skin, [0, 0.135, 0], [0.21, 0.25, 0.21]);
+    part(headPivot, G.sphere, M.skin, [0, 0.135, 0], [0.125, 0.145, 0.125]);
     const faceZ = 0.108;
     for (const side of [-1, 1]) {
       part(headPivot, G.box, M.eye, [side * 0.05, 0.18, faceZ], [0.032, 0.024, 0.012]);
@@ -637,7 +638,7 @@ export function createScene(canvas, THREE) {
     part(headPivot, G.box, M.skin, [0, 0.12, faceZ + 0.004], [0.05, 0.01, 0.02]); // mouth
 
     if (hairStyle !== "cap") {
-      part(headPivot, G.box, M.hair, [0, 0.24, -0.006], [0.232, 0.13, 0.232]);
+      part(headPivot, G.sphere, M.hair, [0, 0.16, -0.006], [0.132, 0.13, 0.132]);
     }
     if (hairStyle === "long") {
       part(headPivot, G.box, M.hair, [0, 0.14, -0.12], [0.2, 0.3, 0.08]);
