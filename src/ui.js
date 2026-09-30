@@ -57,6 +57,12 @@ export function createUI({ mount, on = () => {} }) {
             .pz-toast { left:50%; top:5rem; transform:translateX(-50%); background:rgba(60,10,50,.95); border:1px solid var(--pz-magenta); border-radius:14px; padding:.6rem 1.1rem; max-width:42rem; box-shadow:0 0 30px rgba(255,62,165,.4); }
             .pz-flash { inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(2rem,9vw,5.5rem); font-weight:900; letter-spacing:.06em; color:#fff; text-shadow:0 0 30px rgba(34,230,255,.8),0 0 60px rgba(255,62,165,.6); pointer-events:none; opacity:0; transition:opacity .3s; }
             .pz-flash.on { opacity:1; }
+            .pz-busy { left: 50%; bottom: 6.4rem; transform: translateX(-50%); display: flex; align-items: center; gap: .5rem;
+                       background: rgba(20,16,51,.86); border: 1px solid rgba(34,230,255,.4); border-radius: 999px; padding: .45rem .95rem; font-weight: 700; color: var(--pz-cyan); }
+            .pz-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pz-cyan); animation: pzPulse 1s infinite ease-in-out; }
+            .pz-dot:nth-child(2) { animation-delay: .15s; background: var(--pz-magenta); }
+            .pz-dot:nth-child(3) { animation-delay: .3s; background: var(--pz-lime); }
+            @keyframes pzPulse { 0%,100% { transform: scale(.6); opacity: .5; } 50% { transform: scale(1.2); opacity: 1; } }
             .pz-votebadge { top:4.6rem; right:1.2rem; background:rgba(20,16,51,.9); border:1px solid rgba(182,255,60,.5); border-radius:16px; padding:.7rem 1rem; text-align:right; font-weight:800; color:var(--pz-lime); }
         `;
         document.head.appendChild(style);
@@ -78,6 +84,8 @@ export function createUI({ mount, on = () => {} }) {
     top.append(phaseLabel, timerWrap, topRight);
 
     const sub = el("div", "pz pz-sub");
+    const busy = el("div", "pz pz-busy");
+    busy.style.display = "none";
     const badge = el("div", "pz pz-votebadge");
     const toast = el("div", "pz pz-toast");
     toast.style.display = "none";
@@ -86,7 +94,7 @@ export function createUI({ mount, on = () => {} }) {
     center.style.display = "none";
     const card = el("div", "pz-card");
     center.appendChild(card);
-    layer.append(top, sub, badge, toast, flash, center);
+    layer.append(top, sub, badge, busy, toast, flash, center);
 
     const show = (node, on2) => {
         node.style.display = on2 ? "" : "none";
@@ -106,6 +114,13 @@ export function createUI({ mount, on = () => {} }) {
                 fill.style.width = `${view.timerTotal ? (view.timer / view.timerTotal) * 100 : 0}%`;
             } else {
                 show(timerWrap, false);
+            }
+            if (view.busy && (view.busy.thinking || view.busy.speaking || view.busy.queue > 0)) {
+                const label = view.busy.thinking ? "thinking" : view.busy.speaking ? "speaking" : "queued";
+                busy.innerHTML = `<span class="pz-dot"></span><span class="pz-dot"></span><span class="pz-dot"></span> ${label}…`;
+                busy.style.display = "";
+            } else {
+                busy.style.display = "none";
             }
             sub.innerHTML = view.subtitle ? `<b>${escapeHtml(view.subtitleWho ?? "Host")}:</b> ${escapeHtml(view.subtitle)}` : "";
             show(sub, Boolean(view.subtitle));

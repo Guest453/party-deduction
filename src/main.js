@@ -29,7 +29,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false };
+const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false, thinking: false };
 
 let voiceFailedShown = false;
 const voice = createVoice({
@@ -58,6 +58,7 @@ function alivePlayers() {
 }
 
 function buildView() {
+    const busy = { thinking: game.thinking, speaking: voice.isSpeaking(), queue: voice.queue() };
     if (!game.entered) {
         // Still on the title screen: render nothing over it.
         return { phase: "" };
@@ -66,7 +67,7 @@ function buildView() {
         return { phase: "lobby", card: { kind: "lobby", players: game.roster, minPlayers: engine.MIN_PLAYERS } };
     }
     const pub = engine.publicState(game.g);
-    const base = { phase: pub.phase, round: pub.round, totalRounds: pub.totalRounds };
+    const base = { phase: pub.phase, round: pub.round, totalRounds: pub.totalRounds, busy };
 
     if (pub.phase === "briefing") {
         return { ...base, subtitleWho: "Host", subtitle: game.briefLine ?? "The story begins…" };
@@ -189,13 +190,19 @@ function beginRound() {
     game.banterIndex = 0;
     refresh();
     const twist = engine.currentTwist(game.g);
+    game.thinking = true;
+    refresh();
     host
         .narrate("twist", { ...publicCtx(), twist })
         .then((line) => {
+            game.thinking = false;
             voice.say(line, game.voices.host);
-            return runDiscussion(); // then the AI players talk
+            return waitForVoice().then(() => runDiscussion());
         })
-        .catch(() => runDiscussion());
+        .catch(() => {
+            game.thinking = false;
+            runDiscussion();
+        });
 }
 
 // Each AI player takes a turn: they speak in character, accuse, or defend.
@@ -284,10 +291,13 @@ async function playDealCutscene() {
             scene3d.setCameraShot(`focus:${p.id}`);
             scene3d.highlight(p.id);
             scene3d.dealCard(p.id);
-            const beat = `${p.name} takes a card, reads it, and looks away.`;
+            game.thinking = true;
+            refresh();
+            const beat = await host.narrate("deal", { ...publicCtx(), player: p.name });
+            game.thinking = false;
             game.dealLine = beat;
             refresh();
-            voice.say(beat, game.voices.players[i] ?? game.voices.host);
+            voice.say(beat, game.voices.host);
             await waitForVoice();
         }
         scene3d.highlight(null);
@@ -330,11 +340,15 @@ async function runAutoVote() {
         const target =
             (named && pool.find((p) => p.name === named.name)) ||
             pool[Math.floor(Math.random() * pool.length)];
-        game.voteLine = `${voter.name} votes for ${target.name}.`;
-        refresh();
         engine.castVote(game.g, voterId, target.id);
         scene3d.vote(voterId, target.id);
-        voice.say(game.voteLine, game.voices.players[game.voteIndex] ?? game.voices.host);
+        game.thinking = true;
+        refresh();
+        const line = await host.narrate("vote-cast", { ...publicCtx(), voter: voter.name, target: target.name });
+        game.thinking = false;
+        game.voteLine = line;
+        refresh();
+        voice.say(line, game.voices.host);
         game.voteIndex += 1;
         await waitForVoice();
         refresh();
@@ -480,6 +494,7 @@ $("splash-start").addEventListener("click", () => {
     if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
     game.entered = true;
     audio.start(); // needs the user gesture
+    voice.unlock(); // prime the audio element
     $("splash").classList.add("leaving");
     setTimeout(() => {
         $("splash").classList.add("hidden");

@@ -114,6 +114,21 @@ export function createVoice({ speak, transcribe, onLine } = {}) {
 
   // Start the next waiting line if the player is idle. Called whenever a line
   // is enqueued, finishes, fails, or is interrupted.
+  // Browsers only allow audio after a user gesture. Call this from the click
+  // that starts the game; a 1-sample silent WAV primes the element.
+  function unlock() {
+    const el = getAudio();
+    if (!el) return;
+    try {
+      el.src =
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+      const played = el.play();
+      if (played && played.catch) played.catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
   function pump() {
     if (current || lines.length === 0) return;
 
@@ -186,7 +201,12 @@ export function createVoice({ speak, transcribe, onLine } = {}) {
     }
     if (played && typeof played.catch === "function") {
       // Autoplay policy rejection (or any play error) -> skip, never throw.
-      played.catch(() => settle(item));
+      played.catch((err) => {
+        if (typeof onError === "function") {
+          try { onError(err, item.text); } catch { /* ignore */ }
+        }
+        settle(item);
+      });
     }
   }
 
@@ -443,6 +463,7 @@ export function createVoice({ speak, transcribe, onLine } = {}) {
     stop,
     isSpeaking,
     queue,
+    unlock,
     record,
     stopRecording,
     attach,

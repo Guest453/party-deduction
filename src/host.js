@@ -259,6 +259,14 @@ const HOST_SYSTEM = [
 function fallbackLine(beat, ctx) {
   const round = ctx && ctx.round != null ? ctx.round : 1;
   switch (beat) {
+    case "deal":
+      return ctx && ctx.player
+        ? `${ctx.player} takes a card, reads it, and looks away. Nobody sees another's role.`
+        : "The roles are dealt, one by one.";
+    case "vote-cast":
+      return ctx && ctx.voter && ctx.target
+        ? `${ctx.voter} votes for ${ctx.target}.`
+        : "A vote is cast.";
     case "welcome":
       return "Welcome, everyone. Take your seats, the doors are shut, and the story begins now.";
     case "briefing":
