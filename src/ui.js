@@ -1,6 +1,6 @@
-// Thin HUD over the 3D scene: turn banner, host subtitle, discussion timer,
-// the pass-and-play secret card, the vote prompt, toasts, and the reveal panel.
-// The 3D scene carries the visuals; this is only what needs to be crisp text.
+// Party Deduction — distinct UI: a neon game-show, not the murder-mystery skin.
+// Injects its own stylesheet and builds the HUD with a different look and layout
+// from whodunnit (neon cyan/magenta on deep indigo, rounded, playful, big taps).
 
 export function createUI({ mount, on = () => {} }) {
     const el = (tag, cls, html) => {
@@ -10,47 +10,54 @@ export function createUI({ mount, on = () => {} }) {
         return node;
     };
 
-    // one stylesheet, injected once
     if (!document.getElementById("party-ui-style")) {
         const style = document.createElement("style");
         style.id = "party-ui-style";
         style.textContent = `
-            .pz { position: fixed; z-index: 10; color: #f6ecdd;
-                  font: 16px/1.5 "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
-            .pz-btn { font: inherit; color: #f6ecdd; cursor: pointer; border-radius: 12px; padding: .7rem 1.15rem;
-                      background: linear-gradient(180deg, rgba(58,45,34,.96), rgba(38,29,22,.96));
-                      border: 1px solid rgba(150,116,78,.38); transition: transform .18s cubic-bezier(.22,1,.36,1), border-color .2s, box-shadow .25s; }
-            .pz-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: #e6b96a; box-shadow: 0 10px 26px rgba(0,0,0,.45); }
-            .pz-btn:disabled { opacity: .45; cursor: not-allowed; }
-            .pz-btn.primary { background: linear-gradient(180deg, #f0d39a, #e6b96a); color: #2a1c10; border-color: #f0cf95; font-weight: 700; }
-            .pz-btn.ghost { background: transparent; box-shadow: none; }
-            .pz-top { top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1.15rem;
-                      background: linear-gradient(rgba(9,7,5,.9), transparent); pointer-events: none; }
-            .pz-top > * { pointer-events: auto; }
-            .pz-phase { letter-spacing: .28em; text-transform: uppercase; font-size: .72rem; color: #e6b96a; }
-            .pz-sub { position: fixed; left: 50%; bottom: 3.2rem; transform: translateX(-50%); max-width: min(46rem, 92vw); text-align: center;
-                      background: rgba(18,13,10,.82); border: 1px solid rgba(150,116,78,.3); border-radius: 14px; padding: .7rem 1.1rem; backdrop-filter: blur(8px); }
-            .pz-sub b { color: #e6b96a; }
-            .pz-timer { display: flex; align-items: center; gap: .5rem; font-variant-numeric: tabular-nums; }
-            .pz-bar { width: 120px; height: 8px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
-            .pz-bar > i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #e6b96a, #f0d39a); }
-            .pz-center { inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8,6,4,.62); backdrop-filter: blur(4px); }
-            .pz-card { width: min(30rem, 92vw); background: rgba(24,18,13,.96); border: 1px solid rgba(150,116,78,.4); border-radius: 20px; padding: 1.6rem; text-align: center; box-shadow: 0 24px 70px rgba(0,0,0,.6); }
-            .pz-card h2 { margin: 0 0 .2rem; font-size: 1.5rem; }
-            .pz-card .role { color: #e6b96a; font-size: 1.25rem; margin: .6rem 0 .2rem; }
-            .pz-card .blurb { color: #c9b39a; }
-            .pz-card .obj { margin-top: .8rem; padding: .7rem; border-radius: 12px; background: rgba(230,185,106,.1); border: 1px solid rgba(230,185,106,.3); }
-            .pz-card .traitor { color: #e06a62; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-            .pz-card .hold { cursor: pointer; user-select: none; padding: 2.4rem 1rem; border-radius: 16px; border: 1px dashed rgba(150,116,78,.5); }
-            .pz-players { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: 1rem 0; }
-            .pz-chip { display: flex; gap: .4rem; align-items: center; background: rgba(255,255,255,.06); border: 1px solid rgba(150,116,78,.3); border-radius: 999px; padding: .35rem .5rem .35rem .8rem; }
-            .pz-chip button { border: 0; background: none; color: #c9b39a; cursor: pointer; font-size: 1rem; }
-            .pz-row { display: flex; gap: .5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
-            .pz-input { font: inherit; color: #f6ecdd; background: rgba(16,12,9,.9); border: 1px solid rgba(150,116,78,.35); border-radius: 10px; padding: .6rem .7rem; }
-            .pz-toast { left: 50%; top: 5rem; transform: translateX(-50%); background: rgba(62,22,20,.95); border: 1px solid #e06a62; border-radius: 12px; padding: .6rem 1rem; max-width: 40rem; }
-            .pz-flash { inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(2rem, 8vw, 5rem); font-weight: 700; letter-spacing: .08em; color: #f6ecdd; text-shadow: 0 6px 30px rgba(0,0,0,.7); pointer-events: none; opacity: 0; transition: opacity .3s; }
-            .pz-flash.on { opacity: 1; }
-            .pz-votebadge { top: 4.6rem; right: 1.15rem; background: rgba(18,13,10,.85); border: 1px solid rgba(150,116,78,.4); border-radius: 14px; padding: .7rem 1rem; text-align: right; }
+            :root { --pz-cyan:#22e6ff; --pz-magenta:#ff3ea5; --pz-lime:#b6ff3c; --pz-indigo:#141033; --pz-ink:#f3f0ff; --pz-dim:#a99fd6; }
+            .pz { position: fixed; z-index: 10; color: var(--pz-ink);
+                  font: 16px/1.5 "Trebuchet MS","Segoe UI",system-ui,sans-serif; }
+            .pz-btn { font: inherit; font-weight: 700; letter-spacing:.02em; color: var(--pz-ink); cursor: pointer;
+                      border-radius: 999px; padding: .75rem 1.3rem; border: 2px solid transparent;
+                      background: linear-gradient(135deg, rgba(34,230,255,.22), rgba(255,62,165,.22));
+                      box-shadow: 0 0 0 2px rgba(255,255,255,.08) inset, 0 8px 24px rgba(0,0,0,.4);
+                      transition: transform .16s cubic-bezier(.2,1.4,.4,1), box-shadow .25s, background .25s; }
+            .pz-btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.02); box-shadow: 0 0 22px rgba(34,230,255,.5), 0 0 40px rgba(255,62,165,.3); }
+            .pz-btn:disabled { opacity:.4; cursor:not-allowed; }
+            .pz-btn.primary { background: linear-gradient(135deg, var(--pz-cyan), var(--pz-magenta)); color:#0a0720; border-color:#fff6; }
+            .pz-btn.ghost { background: transparent; box-shadow: 0 0 0 2px rgba(255,255,255,.14) inset; }
+            .pz-top { top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 1.2rem;
+                      background: linear-gradient(180deg, rgba(10,7,32,.86), transparent); pointer-events:none; }
+            .pz-top > * { pointer-events:auto; }
+            .pz-phase { letter-spacing:.34em; text-transform:uppercase; font-size:.7rem; font-weight:800;
+                        color:#0a0720; background:linear-gradient(135deg,var(--pz-cyan),var(--pz-magenta)); padding:.28rem .7rem; border-radius:999px; }
+            .pz-sub { left:50%; bottom:2.4rem; transform:translateX(-50%); max-width:min(48rem,92vw); text-align:center;
+                      background: rgba(20,16,51,.86); border:1px solid rgba(34,230,255,.4); border-radius:18px; padding:.8rem 1.2rem; backdrop-filter:blur(10px);
+                      box-shadow:0 0 30px rgba(34,230,255,.18); }
+            .pz-sub b { color: var(--pz-cyan); }
+            .pz-timer { display:flex; align-items:center; gap:.5rem; font-variant-numeric:tabular-nums; font-weight:700; }
+            .pz-bar { width:130px; height:9px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; }
+            .pz-bar > i { display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--pz-cyan),var(--pz-magenta)); }
+            .pz-center { inset:0; display:flex; align-items:center; justify-content:center; background:rgba(6,4,20,.66); backdrop-filter:blur(5px); }
+            .pz-card { width:min(32rem,93vw); background:linear-gradient(180deg, rgba(24,18,58,.98), rgba(16,12,42,.98));
+                       border:1px solid rgba(34,230,255,.35); border-radius:26px; padding:1.8rem; text-align:center;
+                       box-shadow:0 0 60px rgba(255,62,165,.25), 0 30px 80px rgba(0,0,0,.6); }
+            .pz-card h2 { margin:0 0 .3rem; font-size:1.7rem; }
+            .pz-card .role { color:var(--pz-lime); font-size:1.5rem; font-weight:800; margin:.6rem 0 .2rem; }
+            .pz-card .blurb { color:var(--pz-dim); }
+            .pz-card .obj { margin-top:.9rem; padding:.8rem; border-radius:16px; background:rgba(34,230,255,.1); border:1px solid rgba(34,230,255,.35); }
+            .pz-card .traitor { margin-top:.7rem; color:var(--pz-magenta); font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+            .pz-card .hold { cursor:pointer; user-select:none; padding:2.6rem 1rem; border-radius:20px; border:2px dashed rgba(34,230,255,.5); }
+            .pz-players { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin:1.1rem 0; }
+            .pz-chip { display:flex; gap:.4rem; align-items:center; background:rgba(34,230,255,.1); border:1px solid rgba(34,230,255,.3); border-radius:999px; padding:.4rem .55rem .4rem .85rem; font-weight:700; }
+            .pz-chip button { border:0; background:none; color:var(--pz-dim); cursor:pointer; font-size:1.1rem; }
+            .pz-row { display:flex; gap:.6rem; justify-content:center; margin-top:1rem; flex-wrap:wrap; }
+            .pz-input { font:inherit; color:var(--pz-ink); background:rgba(10,7,32,.9); border:2px solid rgba(34,230,255,.3); border-radius:999px; padding:.65rem 1rem; }
+            .pz-input:focus { outline:none; border-color:var(--pz-cyan); }
+            .pz-toast { left:50%; top:5rem; transform:translateX(-50%); background:rgba(60,10,50,.95); border:1px solid var(--pz-magenta); border-radius:14px; padding:.6rem 1.1rem; max-width:42rem; box-shadow:0 0 30px rgba(255,62,165,.4); }
+            .pz-flash { inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(2rem,9vw,5.5rem); font-weight:900; letter-spacing:.06em; color:#fff; text-shadow:0 0 30px rgba(34,230,255,.8),0 0 60px rgba(255,62,165,.6); pointer-events:none; opacity:0; transition:opacity .3s; }
+            .pz-flash.on { opacity:1; }
+            .pz-votebadge { top:4.6rem; right:1.2rem; background:rgba(20,16,51,.9); border:1px solid rgba(182,255,60,.5); border-radius:16px; padding:.7rem 1rem; text-align:right; font-weight:800; color:var(--pz-lime); }
         `;
         document.head.appendChild(style);
     }
@@ -66,7 +73,7 @@ export function createUI({ mount, on = () => {} }) {
     const fill = el("i");
     bar.appendChild(fill);
     const timerText = el("span", "", "0:00");
-    timerWrap.append(el("span", "", "Discussion"), bar, timerText);
+    timerWrap.append(el("span", "", "Talk"), bar, timerText);
     const topRight = el("div", "", "");
     top.append(phaseLabel, timerWrap, topRight);
 
@@ -79,14 +86,12 @@ export function createUI({ mount, on = () => {} }) {
     center.style.display = "none";
     const card = el("div", "pz-card");
     center.appendChild(card);
-
     layer.append(top, sub, badge, toast, flash, center);
 
     const show = (node, on2) => {
         node.style.display = on2 ? "" : "none";
     };
     const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, "0")}`;
-
     let toastTimer = null;
     let flashTimer = null;
 
@@ -95,11 +100,10 @@ export function createUI({ mount, on = () => {} }) {
             phaseLabel.textContent = view.phase ?? "";
             badge.textContent = view.voteHint ?? "";
             show(badge, Boolean(view.voteHint));
-            const t = view.timer;
-            if (typeof t === "number") {
+            if (typeof view.timer === "number") {
                 show(timerWrap, true);
-                timerText.textContent = fmt(t);
-                fill.style.width = `${view.timerTotal ? (t / view.timerTotal) * 100 : 0}%`;
+                timerText.textContent = fmt(view.timer);
+                fill.style.width = `${view.timerTotal ? (view.timer / view.timerTotal) * 100 : 0}%`;
             } else {
                 show(timerWrap, false);
             }
@@ -114,7 +118,6 @@ export function createUI({ mount, on = () => {} }) {
                 topRight.appendChild(b);
             }
 
-            // modal card
             if (!view.card) {
                 center.style.display = "none";
                 card.innerHTML = "";
@@ -123,11 +126,11 @@ export function createUI({ mount, on = () => {} }) {
                 card.innerHTML = "";
                 const c = view.card;
                 if (c.kind === "lobby") {
-                    card.append(el("h2", "", "Party deduction"));
-                    card.append(el("p", "blurb", "Secret roles, a lying minority, and a host who never stops talking. 4–10 players, one device."));
+                    card.append(el("h2", "", "Who's playing?"));
+                    card.append(el("p", "blurb", "4–10 players, one device. Secret roles, one or two traitors, and a host who never stops talking."));
                     const list = el("div", "pz-players");
                     for (const p of c.players) {
-                        const chip = el("span", "pz-chip", `${escapeHtml(p.name)}`);
+                        const chip = el("span", "pz-chip", escapeHtml(p.name));
                         const x = el("button", "", "×");
                         x.onclick = () => on("remove-player", p.id);
                         chip.appendChild(x);
@@ -138,7 +141,7 @@ export function createUI({ mount, on = () => {} }) {
                     const input = el("input", "pz-input");
                     input.placeholder = "Player name";
                     input.maxLength = 16;
-                    const add = el("button", "pz-btn", "Add player");
+                    const add = el("button", "pz-btn", "Add");
                     add.onclick = () => {
                         if (input.value.trim()) {
                             on("add-player", input.value.trim());
@@ -150,7 +153,7 @@ export function createUI({ mount, on = () => {} }) {
                     };
                     row.append(input, add);
                     card.appendChild(row);
-                    const start = el("button", `pz-btn primary`, `Start game`);
+                    const start = el("button", "pz-btn primary", "Start the show");
                     start.disabled = (c.players?.length ?? 0) < c.minPlayers;
                     start.onclick = () => on("start");
                     const row2 = el("div", "pz-row");
@@ -158,8 +161,8 @@ export function createUI({ mount, on = () => {} }) {
                     card.appendChild(row2);
                 } else if (c.kind === "secret") {
                     card.append(el("h2", "", `Pass to ${escapeHtml(c.playerName)}`));
-                    card.append(el("p", "blurb", "Make sure only they can see. Hold to reveal."));
-                    const hold = el("div", "hold", "Hold to reveal your role");
+                    card.append(el("p", "blurb", "Only they should see this. Tap to reveal."));
+                    const hold = el("div", "hold", "Tap to reveal your role");
                     let shown = false;
                     const reveal = () => {
                         if (shown) return;
@@ -172,12 +175,10 @@ export function createUI({ mount, on = () => {} }) {
                         if (c.traitor) hold.append(el("div", "traitor", "You are a traitor"));
                         on("role-seen");
                     };
-                    hold.onpointerdown = reveal;
                     hold.onclick = reveal;
                     card.appendChild(hold);
                     const cont = el("button", "pz-btn primary", "Got it — pass on");
                     cont.disabled = true;
-                    // enable once revealed
                     const check = setInterval(() => {
                         if (shown) {
                             cont.disabled = false;
@@ -189,8 +190,8 @@ export function createUI({ mount, on = () => {} }) {
                     row.appendChild(cont);
                     card.appendChild(row);
                 } else if (c.kind === "vote") {
-                    card.append(el("h2", "", `${escapeHtml(c.voterName)} votes`));
-                    card.append(el("p", "blurb", "Tap a player at the table to vote for them."));
+                    card.append(el("h2", "", `${escapeHtml(c.voterName)}, who is it?`));
+                    card.append(el("p", "blurb", "Tap a player at the table, or a name here."));
                     const row = el("div", "pz-row");
                     for (const p of c.targets) {
                         const b = el("button", "pz-btn", escapeHtml(p.name));
@@ -198,18 +199,11 @@ export function createUI({ mount, on = () => {} }) {
                         row.appendChild(b);
                     }
                     card.appendChild(row);
-                    if (c.canSkip) {
-                        const skip = el("button", "pz-btn ghost", "Skip vote");
-                        skip.onclick = () => on("cast-vote", { voterId: c.voterId, targetId: null });
-                        const row2 = el("div", "pz-row");
-                        row2.appendChild(skip);
-                        card.appendChild(row2);
-                    }
                 } else if (c.kind === "reveal") {
-                    card.append(el("h2", "", c.crewWon ? "The crew wins" : "The traitors win"));
+                    card.append(el("h2", "", c.crewWon ? "The crew wins!" : "The traitors win!"));
                     const list = el("div", "pz-players");
                     for (const p of c.players) {
-                        const chip = el("span", "pz-chip", `${escapeHtml(p.name)} — ${escapeHtml(p.roleName)}${p.traitor ? " (traitor)" : ""}`);
+                        const chip = el("span", "pz-chip", `${escapeHtml(p.name)} — ${escapeHtml(p.roleName)}${p.traitor ? " · traitor" : ""}`);
                         list.appendChild(chip);
                     }
                     card.appendChild(list);

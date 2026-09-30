@@ -117,7 +117,10 @@ export const api = {
     },
 
     /** Host / text call. `ask({ system, user })` is what host.js receives. */
-    async ask({ system, user, json = false }) {
+    async ask(input) {
+        // Accept either a string (kept for convenience) or { system, user, json }.
+        const req = typeof input === "string" ? { system: "", user: input } : input;
+        const { system, user, json = false } = req;
         const res = await fetch(`${GEN_URL}/v1/chat/completions`, {
             method: "POST",
             headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
@@ -127,7 +130,7 @@ export const api = {
                 ...(json ? { response_format: { type: "json_object" } } : {}),
                 messages: [
                     ...(system ? [{ role: "system", content: system }] : []),
-                    { role: "user", content: user },
+                    { role: "user", content: user ?? "" },
                 ],
             }),
         });

@@ -380,15 +380,25 @@ export function createScene(canvas, THREE) {
   let lastW = 0;
   let lastH = 0;
   function syncSize() {
-    const w = Math.max(1, canvas.width || canvas.clientWidth || 800);
-    const h = Math.max(1, canvas.height || canvas.clientHeight || 600);
+    const vw = typeof innerWidth === "number" ? innerWidth : 0;
+    const vh = typeof innerHeight === "number" ? innerHeight : 0;
+    const w = Math.max(1, canvas.clientWidth || vw || 800);
+    const h = Math.max(1, canvas.clientHeight || vh || 600);
     if (w !== lastW || h !== lastH) {
       lastW = w;
       lastH = h;
-      if (renderer) renderer.setSize(w, h, false);
+      // setSize(w, h, true) lets three set the canvas' drawing buffer + CSS box.
+      if (renderer) renderer.setSize(w, h, true);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
+  }
+  function resize(w, h) {
+    if (w) canvas.style.width = `${w}px`;
+    if (h) canvas.style.height = `${h}px`;
+    lastW = 0; // force the next sync to apply
+    lastH = 0;
+    syncSize();
   }
   syncSize();
 
@@ -930,6 +940,7 @@ export function createScene(canvas, THREE) {
     updateCamera(d);
     syncSize();
 
+    syncSize();
     if (renderer) renderer.render(scene, camera);
   }
 
@@ -958,19 +969,24 @@ export function createScene(canvas, THREE) {
     scene.background = null;
   }
 
+  function avatarObjects() {
+    return avatars.map((a) => a.group).filter(Boolean);
+  }
+
   // Seed the lobby mood immediately.
   setPhase("lobby");
   update(0.016);
 
-  return {
-    setPlayers,
+  return { setPlayers,
     setPhase,
     highlight,
     vote,
     eliminate,
     revealRoles,
     setCameraShot,
-    update,
+    resize, update,
     dispose,
+    camera: () => camera,
+    avatarObjects,
   };
 }
