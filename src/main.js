@@ -10,6 +10,7 @@ import { createScene } from "./scene.js";
 import { createUI } from "./ui.js";
 import { createDebug } from "./debug.js";
 import { createBanter } from "./banter.js";
+import { createAudio } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 const banner = $("banner");
@@ -38,6 +39,7 @@ const voice = createVoice({
 
 const ui = createUI({ mount: document.body, on: handleEvent });
 const debug = createDebug();
+const audio = createAudio();
 const banter = createBanter({ ask: (req) => api.ask(req), model: api.model });
 const host = createHost({ ask: (req) => api.ask(req), model: api.model });
 
@@ -61,7 +63,7 @@ function buildView() {
     const base = { phase: pub.phase, round: pub.round, totalRounds: pub.totalRounds };
 
     if (pub.phase === "briefing") {
-        return { ...base, actions: [{ label: "Deal the roles", event: "roles", kind: "primary" }] };
+        return { ...base, subtitleWho: "Host", subtitle: game.briefLine ?? "The story begins…" };
     }
     if (pub.phase === "roles") {
         // The roles are dealt on screen and never shown — watch the cutscene.
@@ -74,7 +76,7 @@ function buildView() {
             ...base,
             subtitleWho: speaking ? speaking.name : "Host",
             subtitle: last ? last.line : pub.twist,
-            actions: [{ label: game.banterRunning ? "Talking…" : "Call the vote", event: "start-vote", kind: "primary", disabled: game.banterRunning }],
+
         };
     }
     if (pub.phase === "vote") {
@@ -88,7 +90,7 @@ function buildView() {
         };
     }
     if (pub.phase === "result") {
-        return { ...base, actions: [{ label: "Continue", event: "next", kind: "primary" }] };
+        return { ...base, subtitleWho: "Host", subtitle: game.resultLine ?? "The votes are counted…" };
     }
     if (pub.phase === "reveal" || pub.phase === "ended") {
         const revealed = pub.revealed ?? [];
@@ -107,6 +109,7 @@ function buildView() {
 }
 
 function refresh() {
+    audio.setPhase(game.g ? engine.publicState(game.g).phase : "lobby");
     view = buildView();
     ui.render(view);
     const pub = game.g ? engine.publicState(game.g) : null;
@@ -149,7 +152,10 @@ function startGame(seed) {
             scene3d.setPhase("briefing");
             refresh();
             const line = await host.narrate("briefing", publicCtx());
+            game.briefLine = line;
             voice.say(line, game.voices.host);
+            await waitForVoice();
+            playDealCutscene(); // auto: deal the roles, then round 1
         } catch (error) {
             showError(error.message);
         }
@@ -236,6 +242,8 @@ async function runDiscussion() {
         scene3d.highlight(null);
         refresh();
     }
+    // auto: the discussion ends and the table votes
+    if (game.g && game.g.phase === "round") openVote();
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -336,13 +344,28 @@ function afterVote() {
         const out = game.g.players.find((p) => p.id === tally.eliminatedId);
         scene3d.setCameraShot(`focus:${tally.eliminatedId}`);
         scene3d.highlight(tally.eliminatedId);
+        scene3d.setTimeScale(0.28); // slow motion on the reveal
+        audio.sting();
         if (out) ui.flash(`${out.name} is out`); // the gasp
         scene3d.eliminate(tally.eliminatedId);
+        setTimeout(() => scene3d.setTimeScale(1), 1600);
     } else {
         ui.flash("A tie — no one is out");
     }
     refresh();
-    host.readVotes(tally, publicCtx()).then((line) => voice.say(line, game.voices.host)).catch(() => {});
+    host
+        .readVotes(tally, publicCtx())
+        .then((line) => {
+            game.resultLine = line;
+            voice.say(line, game.voices.host);
+            return waitForVoice();
+        })
+        .then(() => {
+            if (game.g && game.g.phase === "result") nextPhase(); // auto: next round / reveal
+        })
+        .catch(() => {
+            if (game.g && game.g.phase === "result") nextPhase();
+        });
 }
 
 function nextPhase() {
@@ -450,6 +473,7 @@ $("splash-connect").addEventListener("click", () => api.connect().catch((e) => s
 $("splash-start").addEventListener("click", () => {
     if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
     game.entered = true;
+    audio.start(); // needs the user gesture
     $("splash").classList.add("leaving");
     setTimeout(() => {
         $("splash").classList.add("hidden");

@@ -421,10 +421,13 @@ export function createScene(canvas, THREE) {
         if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
         out.normalize();
         const tangent = new THREE.Vector3(-out.z, 0, out.x);
-        const pos = new THREE.Vector3(p.x, 1.55, p.z)
-          .addScaledVector(out, 0.85)
-          .addScaledVector(tangent, 0.42);
-        const target = new THREE.Vector3(p.x, 0.95, p.z).addScaledVector(out, -0.55);
+        // Stand back and frame the FACE. The old shot sat 0.85m away at y=1.55 —
+        // inside the avatar's head — so the near plane clipped through the body
+        // and filled the screen with a giant coloured surface.
+        const pos = new THREE.Vector3(p.x, 1.62, p.z)
+          .addScaledVector(out, 1.85)
+          .addScaledVector(tangent, 0.7);
+        const target = new THREE.Vector3(p.x, 1.28, p.z).addScaledVector(out, -0.2);
         return { pos, target };
       }
     }
@@ -961,8 +964,13 @@ export function createScene(canvas, THREE) {
 
   // ---- the frame ----------------------------------------------------------
   let time = 0;
+  let timeScale = 1;
+  function setTimeScale(scale) {
+    timeScale = Math.max(0.05, Math.min(1, Number(scale) || 1));
+  }
+
   function update(dt) {
-    const d = Math.max(0, Math.min(Number(dt) || 0, 0.05));
+    const d = Math.max(0, Math.min(Number(dt) || 0, 0.05)) * timeScale;
     time += d;
 
     for (let i = 0; i < flames.length; i++) {
@@ -1032,6 +1040,7 @@ export function createScene(canvas, THREE) {
     dispose,
     camera: () => camera,
     dealCard,
+    setTimeScale,
     scene: () => scene,
     avatarObjects,
   };
