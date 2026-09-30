@@ -230,14 +230,18 @@ function handleEvent(event, value) {
             openVote();
             break;
         case "cast-vote": {
+            const voter = game.voteOrder[game.voteIndex];
+            if (value.voterId !== voter) return; // ignore stray/duplicate taps
             const res = engine.castVote(g, value.voterId, value.targetId);
             if (!res.ok) return showError(res.error ?? "Vote not counted.");
             scene3d.vote(value.voterId, value.targetId);
             game.voteIndex += 1;
-            if (g.phase !== "vote") {
-                afterVote();
+            if (game.voteIndex >= game.voteOrder.length) {
+                afterVote(); // everyone has voted -> close, tally, narrate
             } else {
-                scene3d.setCameraShot(`focus:${game.voteOrder[game.voteIndex] ?? "overview"}`);
+                const next = game.voteOrder[game.voteIndex];
+                scene3d.setCameraShot(`focus:${next}`);
+                scene3d.highlight(next);
                 refresh();
             }
             break;
