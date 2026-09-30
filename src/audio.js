@@ -2,21 +2,39 @@
 // the Web Audio API: an ambient drone bed, a rising vote tension, and a low
 // sting when someone is voted out. Starts on the first user gesture (browsers
 // require one), and degrades silently if Web Audio is unavailable.
+// Real, copyright-free tension audio: "Suspicious Loop" by Hazmat Harry
+// (CC0 / public domain, OpenGameArt.org). No AI model, no external files at
+// runtime beyond this one track. The bed loops quietly; a synthesized sting
+// (Web Audio) lands when someone is eliminated. Starts on the first gesture.
+const TRACK_URL = "audio/suspicious-loop.mp3";
+
 export function createAudio() {
-    const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
-    if (!AC) return { start() {}, setPhase() {}, sting() {}, stop() {}, enabled: false };
-
-    let ctx = null;
+    let bed = null;       // the looping <audio> element
+    let ctx = null;       // Web Audio context for the sting
     let master = null;
-    const nodes = { drone: [], tension: null, tensionGain: null };
     let started = false;
+    let volume = 0.5;
 
-    function ensure() {
+    function ensureBed() {
+        if (bed) return bed;
+        const Ctor = globalThis.Audio;
+        if (typeof Ctor !== "function") return null;
+        bed = new Ctor();
+        bed.src = TRACK_URL;
+        bed.loop = true;
+        bed.volume = 0;
+        bed.preload = "auto";
+        return bed;
+    }
+
+    function ensureCtx() {
         if (ctx) return true;
+        const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+        if (!AC) return false;
         try {
             ctx = new AC();
             master = ctx.createGain();
-            master.gain.value = 0.0;
+            master.gain.value = 0.5;
             master.connect(ctx.destination);
             return true;
         } catch {
@@ -25,82 +43,46 @@ export function createAudio() {
         }
     }
 
-    // A slow, low drone: two detuned saw/triangle voices through a lowpass, with
-    // a slow LFO on the filter so it breathes. The bed under every scene.
-    function buildDrone() {
-        const filter = ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 220;
-        filter.Q.value = 0.8;
-        filter.connect(master);
-
-        const lfo = ctx.createOscillator();
-        lfo.frequency.value = 0.06;
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 90;
-        lfo.connect(lfoGain).connect(filter.frequency);
-        lfo.start();
-
-        for (const [freq, type, detune] of [[55, "sine", 0], [82.5, "triangle", 4], [110, "sine", -6]]) {
-            const osc = ctx.createOscillator();
-            osc.type = type;
-            osc.frequency.value = freq;
-            osc.detune.value = detune;
-            const g = ctx.createGain();
-            g.gain.value = 0.16;
-            osc.connect(g).connect(filter);
-            osc.start();
-            nodes.drone.push(osc, g);
-        }
-        nodes.drone.push(filter, lfo, lfoGain);
-    }
-
-    // The tension riser played while the table votes: a slowly rising tone.
-    function buildTension() {
-        const osc = ctx.createOscillator();
-        osc.type = "sawtooth";
-        osc.frequency.value = 110;
-        const g = ctx.createGain();
-        g.gain.value = 0;
-        const filter = ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 900;
-        osc.connect(filter).connect(g).connect(master);
-        osc.start();
-        nodes.tension = osc;
-        nodes.tensionGain = g;
-    }
-
-    function ramp(param, value, seconds) {
-        try {
-            param.cancelScheduledValues(ctx.currentTime);
-            param.linearRampToValueAtTime(value, ctx.currentTime + seconds);
-        } catch {
-            param.value = value;
-        }
-    }
-
     return {
         enabled: true,
-        /** Call from a click handler: resumes the context and fades the bed in. */
+        /** Call from a click handler: starts the looping bed. */
         start() {
-            if (!ensure()) return;
-            if (ctx.state === "suspended") ctx.resume().catch(() => {});
-            if (!started) {
-                buildDrone();
-                buildTension();
-                started = true;
+            const el = ensureBed();
+            if (!el) return;
+            try {
+                el.play().catch(() => {});
+            } catch {
+                /* ignore */
             }
-            ramp(master.gain, 0.5, 1.6);
+            started = true;
+            ensureCtx(); // so the elimination sting has a context
+            // fade the bed in
+            let v = 0;
+            const id = setInterval(() => {
+                v = Math.min(volume, v + 0.03);
+                try {
+                    el.volume = v;
+                } catch {
+                    /* ignore */
+                }
+                if (v >= volume) clearInterval(id);
+            }, 120);
         },
-        /** Mood per phase: the drone brightens for tension, softens for reveals. */
+        /** Mood per phase: louder and slightly pitched-up for the vote. */
         setPhase(phase) {
-            if (!ctx || !started) return;
-            const tension = phase === "vote" ? 0.22 : phase === "result" ? 0.16 : phase === "reveal" ? 0.1 : 0.0;
-            ramp(nodes.tensionGain.gain, tension, 0.9);
-            if (nodes.tension) ramp(nodes.tension.frequency, phase === "vote" ? 190 : 130, 1.2);
+            if (!bed) return;
+            const target = phase === "vote" ? 0.62 : phase === "result" ? 0.55 : phase === "reveal" ? 0.4 : 0.45;
+            volume = target;
+            if (started) {
+                try {
+                    bed.playbackRate = phase === "vote" ? 1.12 : 1.0;
+                } catch {
+                    /* ignore */
+                }
+            }
         },
         /** A low thump when someone is eliminated. */
+
         sting() {
             if (!ctx || !started) return;
             const osc = ctx.createOscillator();
@@ -117,8 +99,14 @@ export function createAudio() {
             osc.stop(now + 1.0);
         },
         stop() {
-            if (!ctx) return;
-            ramp(master.gain, 0, 0.4);
+            if (!bed) return;
+            try {
+                bed.volume = 0;
+                bed.pause();
+            } catch {
+                /* ignore */
+            }
+            started = false;
         },
     };
 }

@@ -177,7 +177,7 @@ function publicCtx() {
         twist: pub.twist,
         location: pub.scenario?.location,
         title: pub.scenario?.title,
-        players: alivePlayers().map((p) => p.name),
+        players: game.g.players.map((p) => ({ id: p.id, name: p.name })),
     };
 }
 
