@@ -8,11 +8,13 @@ import { createHost } from "./host.js";
 import { createVoice } from "./voice.js";
 import { createScene } from "./scene.js";
 import { createUI } from "./ui.js";
+import { createDebug } from "./debug.js";
 
 const $ = (id) => document.getElementById(id);
 const banner = $("banner");
 let bannerTimer = null;
 function showError(message) {
+    debug.log("ERR " + message);
     banner.textContent = message;
     banner.classList.remove("hidden");
     clearTimeout(bannerTimer);
@@ -34,6 +36,7 @@ const voice = createVoice({
 });
 
 const ui = createUI({ mount: document.body, on: handleEvent });
+const debug = createDebug();
 const host = createHost({ ask: (req) => api.ask(req), model: api.model });
 
 // ---------------------------------------------------------------- view
@@ -103,6 +106,22 @@ function buildView() {
 function refresh() {
     view = buildView();
     ui.render(view);
+    const pub = game.g ? engine.publicState(game.g) : null;
+    debug.set({
+        build: (new URL(import.meta.url).searchParams.get("v") || "dev"),
+        entered: game.entered,
+        phase: pub ? pub.phase : "(none)",
+        round: pub ? pub.round : "-",
+        players: game.g ? game.g.players.length : game.roster.length,
+        seats: scene3d.avatarObjects ? scene3d.avatarObjects().length : "?",
+        revealIndex: game.revealIndex,
+        voteIndex: game.voteIndex,
+        voteOrder: game.voteOrder.length,
+        voter: game.voteOrder[game.voteIndex] ?? "-",
+        voices: Object.keys(game.voices || {}).length,
+        queue: voice.queue(),
+        speaking: voice.isSpeaking(),
+    });
 }
 
 // ---------------------------------------------------------------- flow
@@ -148,6 +167,7 @@ function publicCtx() {
 
 function beginRound() {
     engine.beginRound(game.g);
+    debug.log("beginRound -> round " + game.g.round);
     scene3d.setPhase("round");
     scene3d.setCameraShot("orbit");
     refresh();
@@ -158,6 +178,7 @@ function beginRound() {
 
 function openVote() {
     engine.openVote(game.g);
+    debug.log("openVote, voters=" + alivePlayers().length);
     game.voteOrder = alivePlayers().map((p) => p.id);
     game.voteIndex = 0;
     scene3d.setPhase("vote");
