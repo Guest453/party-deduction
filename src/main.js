@@ -25,7 +25,7 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const scene3d = createScene(canvas, THREE);
 
-const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0 };
+const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false };
 
 const voice = createVoice({
     speak: (text, v) => api.speak(text, v),
@@ -45,6 +45,10 @@ function alivePlayers() {
 }
 
 function buildView() {
+    if (!game.entered) {
+        // Still on the title screen: render nothing over it.
+        return { phase: "" };
+    }
     if (!game.g) {
         return { phase: "lobby", card: { kind: "lobby", players: game.roster, minPlayers: engine.MIN_PLAYERS } };
     }
@@ -281,6 +285,7 @@ canvas.addEventListener("click", (event) => {
 $("splash-connect").addEventListener("click", () => api.connect().catch((e) => showError(e.message)));
 $("splash-start").addEventListener("click", () => {
     if (!api.signedIn()) return showError("Connect Pollen first — the host speaks with your own Pollen.");
+    game.entered = true;
     $("splash").classList.add("leaving");
     setTimeout(() => {
         $("splash").classList.add("hidden");
