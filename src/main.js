@@ -199,6 +199,7 @@ async function runDiscussion() {
             scene3d.highlight(p.id);
             scene3d.setCameraShot(`focus:${p.id}`);
             refresh();
+            await sleep(650); // a beat of silence before they speak
             const secret = engine.secretFor(game.g, p.id);
             const text = await banter.speak({
                 name: p.name,
@@ -213,7 +214,20 @@ async function runDiscussion() {
             game.transcript.push({ name: p.name, line: text });
             voice.say(text, game.voices.players[i] ?? game.voices.host);
             refresh();
-            await waitForVoice(text);
+
+            // Reaction shot: if they named someone, cut to that person's face.
+            const accused = alivePlayers().find(
+                (q) => q.id !== p.id && text.toLowerCase().includes(q.name.toLowerCase().split(" ")[0]),
+            );
+            if (accused) {
+                await waitForVoice(text);
+                scene3d.highlight(accused.id);
+                scene3d.setCameraShot(`focus:${accused.id}`);
+                refresh();
+                await sleep(1100); // hold on the accused
+            } else {
+                await waitForVoice(text);
+            }
         }
     } finally {
         game.banterRunning = false;
@@ -223,6 +237,8 @@ async function runDiscussion() {
         refresh();
     }
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Wait until the queue has drained (and a small beat) so turns feel paced.
 function waitForVoice() {
@@ -316,7 +332,15 @@ async function runAutoVote() {
 function afterVote() {
     const tally = engine.closeVote(game.g); // sets phase -> result, eliminates
     scene3d.setPhase("result");
-    if (tally?.eliminatedId) scene3d.eliminate(tally.eliminatedId);
+    if (tally?.eliminatedId) {
+        const out = game.g.players.find((p) => p.id === tally.eliminatedId);
+        scene3d.setCameraShot(`focus:${tally.eliminatedId}`);
+        scene3d.highlight(tally.eliminatedId);
+        if (out) ui.flash(`${out.name} is out`); // the gasp
+        scene3d.eliminate(tally.eliminatedId);
+    } else {
+        ui.flash("A tie — no one is out");
+    }
     refresh();
     host.readVotes(tally, publicCtx()).then((line) => voice.say(line, game.voices.host)).catch(() => {});
 }
