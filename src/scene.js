@@ -187,6 +187,8 @@ const GREY = 0x2a2a2a;
 
 // ---------------------------------------------------------------------------
 
+import { buildSuspects as buildModels } from "./models.js";
+
 export function createScene(canvas, THREE) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(48, 1.333, 0.1, 140);
@@ -530,166 +532,53 @@ export function createScene(canvas, THREE) {
   }
 
   // ---- one seated avatar --------------------------------------------------
+  // Reuse the detailed whodunnit character models (rounded torso/limbs, coats,
+  // hats, hair) instead of hand-rolled primitives. We adapt their API to the
+  // party scene's needs: a ground glow ring, a secret card, a name label.
   function buildAvatar(player, index, count) {
     const id = player && player.id != null ? player.id : `p${index}`;
     const name = player && player.name != null ? player.name : id;
 
-    const outfit = OUTFITS[index % OUTFITS.length];
-    const skin = SKIN[index % SKIN.length];
-    const hair = HAIR[index % HAIR.length];
-    const hairStyle = HAIR_STYLES[index % HAIR_STYLES.length];
-
-    const group = new THREE.Group();
+    const anchor = { position: [0, 0, 0], facing: 0 };
+    const model = buildModels([{ id, name }], [anchor], THREE)[0];
+    const group = model.group;
     group.name = `avatar-${id}`;
 
-    // Materials are per avatar (so highlight / slump can tint one person).
-    const M = {
-      skin: rawMat(skin, { roughness: 0.62 }),
-      hair: rawMat(hair, { roughness: 0.55 }),
-      main: rawMat(outfit.main, { roughness: 0.82 }),
-      dark: rawMat(outfit.dark, { roughness: 0.85 }),
-      shirt: rawMat(outfit.shirt, { roughness: 0.7 }),
-      accent: rawMat(outfit.accent, { roughness: 0.45, metalness: 0.2 }),
-      shoe: rawMat(0x241a12, { roughness: 0.5 }),
-      eye: rawMat(0x1d1712, { roughness: 0.3 }),
-      wood: rawMat(0x3a2616, { roughness: 0.7 }),
-    };
-    // Emissive pieces used by highlight.
-    M.main.emissive = new THREE.Color(outfit.main).multiplyScalar(0.6);
-    M.accent.emissive = new THREE.Color(outfit.accent).multiplyScalar(0.6);
-    M.main.emissiveIntensity = 0;
-    M.accent.emissiveIntensity = 0;
+    // The model's controller (people.js): { id, group, speak, setTalking, face, update, dispose }
+    const inner = model;
 
-    const matList = Object.values(M);
-    const texList = [];
+    // Stand them (they were seated in whodunnit); this scene is a standing table.
+    group.position.set(0, 0, 0);
 
-    // ---- chair ----
-    const chair = new THREE.Group();
-    part(chair, G.box, M.wood, [0, 0.41, -0.05], [0.54, 0.07, 0.52]);
-    part(chair, G.box, M.wood, [0, 0.74, -0.35], [0.52, 0.66, 0.07]);
-    for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        part(chair, G.cyl, M.wood, [sx * 0.23, 0.2, -0.05 + sz * 0.22], [0.03, 0.4, 0.03]);
-      }
-    }
-    group.add(chair);
-
-    // ---- seated legs: thighs forward, shins down, feet flat ----
-    const legs = new THREE.Group();
-    for (const side of [-1, 1]) {
-      part(legs, G.capsule, M.dark, [side * 0.12, 0.44, 0.27], [0.17, 0.12, 0.3]);
-      part(legs, G.capsule, M.dark, [side * 0.12, 0.24, 0.5], [0.16, 0.19, 0.17]);
-      part(legs, G.box, M.shoe, [side * 0.12, 0.04, 0.58], [0.16, 0.07, 0.24]);
-    }
-    group.add(legs);
-    part(group, G.capsule, outfit.style === "dress" ? M.main : M.dark, [0, 0.51, 0.02], [0.4, 0.11, 0.34]);
-    if (outfit.style === "dress") {
-      part(group, G.cyl, M.main, [0, 0.42, 0.12], [0.3, 0.34, 0.26], [0.18, 0, 0]);
-    }
-
-    // ---- upper body pivot (breathes, leans, slumps) ----
-    const upper = new THREE.Group();
-    upper.position.set(0, 0.55, 0);
-    group.add(upper);
-
-    part(upper, G.capsule, M.main, [0, 0.22, 0.01], [0.44, 0.19, 0.32]);
-    const chest = part(upper, G.capsule, M.main, [0, 0.48, 0.0], [0.48, 0.13, 0.32]);
-    part(upper, G.box, M.shirt, [0, 0.48, 0.155], [0.15, 0.24, 0.02]);
-    part(upper, G.box, M.accent, [0, 0.42, 0.165], [0.05, 0.22, 0.02]);
-    if (outfit.style === "dress") {
-      part(upper, G.box, M.accent, [0, 0.56, 0.15], [0.36, 0.05, 0.03]);
-    } else {
-      for (const side of [-1, 1]) {
-        part(upper, G.box, M.dark, [side * 0.15, 0.46, 0.15], [0.13, 0.34, 0.03], [0, 0, side * 0.18]);
-      }
-    }
-
-    // ---- arms: shoulders hang, forearms rest on the table ----
-    const arms = {};
-    for (const side of [-1, 1]) {
-      const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.29, 0.55, 0.02);
-      shoulder.rotation.z = -side * 0.12;
-      part(shoulder, G.capsule, M.main, [0, -0.16, 0.02], [0.14, 0.16, 0.15]);
-      const elbow = new THREE.Group();
-      elbow.position.set(0, -0.31, 0.02);
-      elbow.rotation.x = -1.45; // forearm folds forward onto the table
-      part(elbow, G.capsule, M.main, [0, -0.16, 0], [0.13, 0.15, 0.14]);
-      part(elbow, G.sphere, M.skin, [0, -0.34, 0.01], [0.07, 0.06, 0.09]);
-      shoulder.add(elbow);
-      upper.add(shoulder);
-      arms[side < 0 ? "left" : "right"] = shoulder;
-    }
-
-    // ---- neck and head ----
-    part(upper, G.cyl, M.skin, [0, 0.64, 0], [0.065, 0.09, 0.065]);
-    const headPivot = new THREE.Group();
-    headPivot.position.set(0, 0.69, 0);
-    upper.add(headPivot);
-
-    part(headPivot, G.sphere, M.skin, [0, 0.135, 0], [0.125, 0.145, 0.125]);
-    const faceZ = 0.108;
-    for (const side of [-1, 1]) {
-      part(headPivot, G.box, M.eye, [side * 0.05, 0.18, faceZ], [0.032, 0.024, 0.012]);
-      const brow = part(headPivot, G.box, M.hair, [side * 0.05, 0.22, faceZ], [0.055, 0.012, 0.012]);
-      brow.rotation.z = -side * 0.12;
-    }
-    part(headPivot, G.box, M.skin, [0, 0.15, faceZ + 0.008], [0.03, 0.04, 0.035]); // nose
-    part(headPivot, G.box, M.skin, [0, 0.12, faceZ + 0.004], [0.05, 0.01, 0.02]); // mouth
-
-    if (hairStyle !== "cap") {
-      part(headPivot, G.sphere, M.hair, [0, 0.16, -0.006], [0.132, 0.13, 0.132]);
-    }
-    if (hairStyle === "long") {
-      part(headPivot, G.box, M.hair, [0, 0.14, -0.12], [0.2, 0.3, 0.08]);
-    } else if (hairStyle === "bun") {
-      part(headPivot, G.sphere, M.hair, [0, 0.28, -0.11], [0.07, 0.07, 0.07]);
-    } else if (hairStyle === "bob") {
-      for (const side of [-1, 1]) {
-        part(headPivot, G.box, M.hair, [side * 0.115, 0.12, -0.01], [0.03, 0.2, 0.2]);
-      }
-    } else if (hairStyle === "cap") {
-      part(headPivot, G.cyl, M.dark, [0, 0.25, 0], [0.125, 0.05, 0.125]);
-      part(headPivot, G.cyl, M.dark, [0, 0.29, 0], [0.085, 0.05, 0.085]);
-    }
-
-    // ---- a secret card held at the chest (revealed only to look at it) ----
-    const secretCard = part(upper, G.box, M.accent, [0, 0.34, 0.24], [0.16, 0.22, 0.012]);
-    secretCard.visible = false;
-
-    // ---- name card on the table, just in front of the seat ----
-    const card = makeCardMesh(name, outfit.accent);
-    card.mesh.position.set(0, 0.82, 0.7);
-    group.add(card.mesh);
-    matList.push(card.mat);
-    texList.push(card.tex);
-
-    // ---- glow ring under the avatar ----
+    // Glow ring on the floor so the active speaker reads clearly.
     const ringMat = new THREE.MeshStandardMaterial({
-      color: outfit.accent,
-      emissive: new THREE.Color(outfit.accent),
-      emissiveIntensity: 0,
-      roughness: 0.4,
-      metalness: 0.1,
-      transparent: true,
-      opacity: 0,
+      color: 0xe6b96a, emissive: new THREE.Color(0xe6b96a), emissiveIntensity: 0, roughness: 0.4, metalness: 0.1, transparent: true, opacity: 0,
     });
     const ring = new THREE.Mesh(G.ring, ringMat);
-    ring.scale.set(0.6, 0.6, 0.6);
+    ring.scale.set(0.62, 0.62, 0.62);
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.03;
-    ring.castShadow = false;
-    ring.receiveShadow = false;
     group.add(ring);
-    matList.push(ringMat);
 
-    // ---- place the seat around the table ----
+    // The secret card they are dealt (invisible until then).
+    const secretCard = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({ color: 0xefe4cf, roughness: 0.8, emissive: 0x222222, emissiveIntensity: 0 }));
+    secretCard.scale.set(0.16, 0.22, 0.012);
+    secretCard.position.set(0, 1.15, 0.28);
+    secretCard.visible = false;
+    group.add(secretCard);
+
+    // Name card floating in front of them.
+    const card = makeCardMesh(name, 0xe6b96a);
+    card.mesh.position.set(0, 1.32, 0.42);
+    group.add(card.mesh);
+
+    // Place around the table.
     const angle = (index / Math.max(1, count)) * Math.PI * 2;
     const SEAT_R = 1.62;
     const px = Math.sin(angle) * SEAT_R;
     const pz = Math.cos(angle) * SEAT_R;
     group.position.set(px, 0, pz);
-    group.rotation.y = Math.atan2(-px, -pz); // face the table centre
+    group.rotation.y = Math.atan2(-px, -pz);
 
     scene.add(group);
 
@@ -697,15 +586,15 @@ export function createScene(canvas, THREE) {
       id,
       name,
       group,
-      chair,
-      upper,
-      chest,
-      headPivot,
-      arms,
-      matList,
-      texList,
-      mainMat: M.main,
-      accentMat: M.accent,
+      inner,
+      upper: group,       // people.js has no torso pivot; slump tilts the whole group
+      chest: group,
+      headPivot: group,
+      arms: null,
+      matList: [ringMat, secretCard.material, card.mat],
+      texList: [card.tex],
+      mainMat: { emissiveIntensity: 0, color: new THREE.Color(0xe6b96a) },
+      accentMat: { emissiveIntensity: 0, color: new THREE.Color(0xe6b96a) },
       ringMat,
       ring,
       t: Math.random() * 10,
@@ -720,11 +609,10 @@ export function createScene(canvas, THREE) {
       dim: 0,
       label: { canvas: null, tex: null, mat: null, sprite: null },
       secretCard,
-      deal: 0,       // 0 -> 1 while receiving a card
-      look: 0,       // 0 -> 1 -> 0 while glancing at it
+      deal: 0,
+      look: 0,
     };
 
-    // Every mesh and sprite carries the player id for raycast taps.
     group.traverse((o) => {
       o.userData.playerId = id;
     });
@@ -733,6 +621,7 @@ export function createScene(canvas, THREE) {
   }
 
   function disposeAvatar(a) {
+    if (a.inner && a.inner.dispose) a.inner.dispose();
     scene.remove(a.group);
     for (const m of a.matList) if (m && m.dispose) m.dispose();
     for (const t of a.texList) if (t && t.dispose) t.dispose();
@@ -860,73 +749,40 @@ export function createScene(canvas, THREE) {
   const grey = new THREE.Color(GREY);
 
   function updateAvatar(a, dt, time) {
-    const t = time + a.t;
+    // Let the reused model breathe and idle.
+    if (a.inner && a.inner.update) a.inner.update(dt);
 
     if (a.eliminated) {
       a.slump = Math.min(1, a.slump + dt * 1.7);
-      const s = easeOut(a.slump);
-      a.dim += (1 - a.dim) * damp(dt, 1.5);
-      a.upper.rotation.x = s * 0.55;
-      a.upper.rotation.z = s * 0.12;
-      a.headPivot.rotation.x = s * 0.5;
-      a.headPivot.rotation.y = 0;
-      a.group.position.y = -s * 0.05;
-      for (const m of a.matList) if (m && m.color) m.color.lerp(grey, a.dim * 0.6);
-      a.mainMat.emissiveIntensity = 0;
-      a.accentMat.emissiveIntensity = 0;
+      const sl = easeOut(a.slump);
+      a.group.rotation.x = sl * 0.5;
+      a.group.position.y = -sl * 0.15;
       a.ring.visible = false;
       return;
     }
+    a.group.rotation.x = 0;
 
     // glow (highlight + vote flash)
     a.flash = Math.max(0, a.flash - dt);
     const effective = Math.max(a.glowTarget, a.flash > 0 ? 1 : 0);
     a.glow += (effective - a.glow) * damp(dt, 6);
-    const pulse = 0.85 + Math.sin(t * 4) * 0.15;
-    a.mainMat.emissiveIntensity = a.glow * 0.7 * pulse;
-    a.accentMat.emissiveIntensity = a.glow * 1.1 * pulse;
+    const pulse = 0.85 + Math.sin(time * 4) * 0.15;
     a.ringMat.emissiveIntensity = a.glow * 2.2 * pulse;
     a.ringMat.opacity = a.glow * 0.85;
     a.ring.visible = a.glow > 0.01;
-    a.ring.scale.setScalar(0.6 + a.glow * 0.05 + Math.sin(t * 4) * 0.02 * a.glow);
+    a.ring.scale.setScalar(0.62 + a.glow * 0.05);
 
-    // breathing
-    const breath = Math.sin(t * 1.6) * 0.5 + 0.5;
-    a.chest.scale.set(1 + breath * 0.02, 1 + breath * 0.03, 1 + breath * 0.02);
-    a.upper.position.y = 0.55 + breath * 0.006;
-
-    // slow lean toward the phase (vote = tense forward lean)
-    a.upper.rotation.x += (lightState.lean - a.upper.rotation.x) * damp(dt, 2.5);
-    a.upper.rotation.z = Math.sin(t * 0.5) * 0.02;
-
-    // arms drift with the breathing
-    a.arms.left.rotation.x = Math.sin(t * 0.6 + 1) * 0.03;
-    a.arms.right.rotation.x = Math.sin(t * 0.6) * 0.03;
-
-    // occasional slow head turn
-    if (t > a.nextTurn) {
-      a.headYawTarget = (Math.random() * 2 - 1) * 0.55;
-      a.nextTurn = t + 2.5 + Math.random() * 4.5;
-    }
-    a.headYaw += (a.headYawTarget - a.headYaw) * Math.min(1, dt * 2.2);
-    a.headPivot.rotation.y = a.headYaw;
-    a.headPivot.rotation.x = Math.sin(t * 1.1) * 0.02;
-
-    // the dealt card: it slides in, they glance down at it, then look away.
+    // the dealt card: slides in, they glance at it, then look away
     if (a.deal > 0 || a.look > 0) {
       a.deal = Math.max(0, a.deal - dt * 1.4);
-      const dealt = 1 - a.deal;
       a.secretCard.visible = true;
-      a.secretCard.position.y = 0.34 + a.deal * 0.5;
-      a.secretCard.position.z = 0.24 + a.deal * 0.5;
-      a.secretCard.rotation.z = a.deal * 0.6;
-      a.secretCard.material.emissiveIntensity = 0.4 + (a.look || 0) * 0.6;
-      // while looking, the head tilts down; once the look fades, the head comes up
-      const look = a.look || 0;
-      a.headPivot.rotation.x = Math.sin(t * 1.1) * 0.02 + look * 0.5;
-      if (dealt >= 1 && a.look <= 0) a.secretCard.visible = false;
+      a.secretCard.position.y = 1.15 + a.deal * 0.35;
+      a.secretCard.position.z = 0.28 + a.deal * 0.35;
+      a.secretCard.rotation.z = a.deal * 0.5;
+      if (a.deal <= 0 && a.look <= 0) a.secretCard.visible = false;
     }
   }
+
 
   // ---- vote tokens --------------------------------------------------------
   function updateTokens(dt) {

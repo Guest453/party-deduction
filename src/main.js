@@ -31,7 +31,13 @@ const scene3d = createScene(canvas, THREE);
 
 const game = { g: null, roster: [], seed: 0, voices: {}, revealIndex: 0, voteOrder: [], voteIndex: 0, entered: false, transcript: [], speakingId: null, banterIndex: 0, banterRunning: false };
 
+let voiceFailedShown = false;
 const voice = createVoice({
+    onError: (err) => {
+        if (voiceFailedShown) return;
+        voiceFailedShown = true;
+        showError(`Voice failed: ${err && err.message ? err.message : err}`);
+    },
     speak: (text, v) => api.speak(text, v),
     transcribe: (blob) => api.transcribe(blob),
     onLine: (text) => ui.render({ ...view, subtitle: text, subtitleWho: game.voices.hostName ?? "Host" }),

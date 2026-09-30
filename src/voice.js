@@ -139,7 +139,12 @@ export function createVoice({ speak, transcribe, onLine } = {}) {
 
     Promise.resolve(urlPromise).then(
       (url) => playItem(item, url),
-      () => settle(item), // speak failed -> skip the line, keep going
+      (err) => {
+        if (typeof onError === "function") {
+          try { onError(err, item.text); } catch { /* ignore */ }
+        }
+        settle(item); // speak failed -> skip the line, keep going
+      },
     );
   }
 
