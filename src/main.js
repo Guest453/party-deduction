@@ -62,10 +62,9 @@ function buildView() {
         return { ...base, actions: [{ label: "Deal the roles", event: "roles", kind: "primary" }] };
     }
     if (pub.phase === "roles") {
-        const id = alivePlayers()[game.revealIndex]?.id ?? game.g.players[game.revealIndex]?.id;
-        const player = game.g.players.find((p) => p.id === id) ?? game.g.players[0];
-        const secret = engine.secretFor(game.g, player.id);
-        return { ...base, card: { kind: "secret", playerName: player.name, ...secret } };
+        // One screen, everyone's role at a glance — no passing the device around.
+        const roles = game.g.players.map((p) => ({ name: p.name, ...engine.secretFor(game.g, p.id) }));
+        return { ...base, card: { kind: "roles", roles } };
     }
     if (pub.phase === "round") {
         return {
@@ -230,23 +229,15 @@ function handleEvent(event, value) {
             startGame();
             break;
         case "roles": {
-            engine.nextPhase(g); // briefing -> roles
-            game.revealIndex = 0;
+            // briefing -> roles (assign already done), show the list, then begin.
             scene3d.setPhase("roles");
-            const player = g.players[game.revealIndex];
-            voice.say(`Now: ${player.name}, take the device. Your secret is for your eyes only.`, game.voices.players[game.revealIndex] ?? game.voices.host);
-            refresh();
+            engine.nextPhase(g); // roles -> round
+            beginRound();
             break;
         }
-        case "role-seen-done": {
-            game.revealIndex += 1;
-            if (game.revealIndex >= g.players.length) {
-                beginRound(); // beginRound moves roles -> round itself
-            } else {
-                refresh();
-            }
+        case "begin-round":
+            beginRound();
             break;
-        }
         case "start-vote":
             openVote();
             break;

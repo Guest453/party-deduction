@@ -429,7 +429,7 @@ export function createScene(canvas, THREE) {
       }
     }
     if (shot === "reveal") {
-      return { pos: new THREE.Vector3(0.2, 0.62, 4.7), target: new THREE.Vector3(0, 1.08, 0) };
+      return { pos: new THREE.Vector3(0.4, 1.55, 4.2), target: new THREE.Vector3(0, 1.05, 0) };
     }
     if (shot === "orbit") {
       const r = 5.3;
@@ -987,6 +987,7 @@ export function createScene(canvas, THREE) {
     resize, update,
     dispose,
     camera: () => camera,
+    scene: () => scene,
     avatarObjects,
   };
 }

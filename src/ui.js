@@ -159,6 +159,20 @@ export function createUI({ mount, on = () => {} }) {
                     const row2 = el("div", "pz-row");
                     row2.appendChild(start);
                     card.appendChild(row2);
+                } else if (c.kind === "roles") {
+                    card.append(el("h2", "", "Everyone's secret role"));
+                    card.append(el("p", "blurb", "This screen is for the whole room — then play begins."));
+                    const list = el("div", "pz-players");
+                    for (const r of c.roles) {
+                        const chip = el("span", "pz-chip", `${escapeHtml(r.name)} — ${escapeHtml(r.roleName)}${r.traitor ? " · traitor" : ""}`);
+                        list.appendChild(chip);
+                    }
+                    card.appendChild(list);
+                    const row = el("div", "pz-row");
+                    const go = el("button", "pz-btn primary", "Begin round 1");
+                    go.onclick = () => on("begin-round");
+                    row.appendChild(go);
+                    card.appendChild(row);
                 } else if (c.kind === "secret") {
                     card.append(el("h2", "", `Pass to ${escapeHtml(c.playerName)}`));
                     card.append(el("p", "blurb", "Only they should see this. Tap to reveal."));
