@@ -5,11 +5,7 @@
 
 // Voices the host and players are cast from. Never repeated within one game
 // unless playerCount is larger than the pool (then we cycle).
-const VOICE_POOL = [
-  "alloy", "echo", "fable", "onyx", "nova", "shimmer",
-  "ash", "ballad", "coral", "sage", "verse",
-  "charlie", "george", "callum", "daniel", "fin",
-];
+const VOICE_POOL = ["alloy","echo","fable","onyx","nova","shimmer"];
 
 /**
  * Create the voice layer.
